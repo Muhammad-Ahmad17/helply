@@ -1,10 +1,11 @@
 // POST /api/crawl
-// Authenticated endpoint — enqueues a crawl job (or runs inline for single URL).
+// Single URL: crawls immediately. Site-wide: enqueues + processes first batch inline.
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { assertSafeUrl, UnsafeUrlError, discoverFromSitemap } from "@/lib/crawler";
+import { processCrawlJob } from "@/lib/crawl-worker";
 import { crawlLimiter, checkRateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/security";
 import { log, logError } from "@/lib/log";
@@ -17,6 +18,8 @@ const bodySchema = z.object({
   url: z.string().url().optional(),
   crawlSite: z.boolean().optional(),
 });
+
+const INLINE_SITE_BATCH = 3;
 
 export async function POST(req: Request) {
   const json = await req.json().catch(() => null);
@@ -67,28 +70,48 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "No URLs discovered" }, { status: 400 });
     }
 
-    const jobs = discovered.map((discoveredUrl) => ({
-      bot_id: botId,
-      url: discoveredUrl,
-      status: "pending" as const,
-    }));
+    const { data: insertedJobs, error: jobError } = await service
+      .from("crawl_jobs")
+      .insert(
+        discovered.map((discoveredUrl) => ({
+          bot_id: botId,
+          url: discoveredUrl,
+          status: "pending" as const,
+        }))
+      )
+      .select("id, bot_id, source_id, url, attempts");
 
-    const { error: jobError } = await service.from("crawl_jobs").insert(jobs);
-    if (jobError) {
-      return NextResponse.json({ error: jobError.message }, { status: 500 });
+    if (jobError || !insertedJobs) {
+      return NextResponse.json({ error: jobError?.message ?? "Failed to enqueue" }, { status: 500 });
     }
 
+    // Process first batch inline (Hobby plan has no minute-level cron)
+    const batch = insertedJobs.slice(0, INLINE_SITE_BATCH);
+    for (const job of batch) {
+      await service
+        .from("crawl_jobs")
+        .update({ status: "running", started_at: new Date().toISOString(), attempts: 1 })
+        .eq("id", job.id);
+      await processCrawlJob({ ...job, attempts: 1 });
+    }
+
+    const remaining = discovered.length - batch.length;
     log({
       msg: "site_crawl_enqueued",
       bot_id: botId,
       user_id: user.id,
       url_count: discovered.length,
+      processed_inline: batch.length,
     });
 
     return NextResponse.json({
       ok: true,
       enqueued: discovered.length,
-      message: `Enqueued ${discovered.length} URLs for crawling`,
+      processedInline: batch.length,
+      message:
+        remaining > 0
+          ? `Started ${batch.length} pages now. ${remaining} queued — rest run on the daily crawl job, or crawl URLs individually.`
+          : `Crawled ${batch.length} pages.`,
     });
   }
 
@@ -143,29 +166,37 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Bad state" }, { status: 500 });
   }
 
-  const { error: jobError } = await service.from("crawl_jobs").insert({
-    bot_id: botId,
-    source_id: sid,
-    url: targetUrl,
-    status: "pending",
-  });
+  const { data: job, error: jobError } = await service
+    .from("crawl_jobs")
+    .insert({
+      bot_id: botId,
+      source_id: sid,
+      url: targetUrl,
+      status: "running",
+      started_at: new Date().toISOString(),
+      attempts: 1,
+    })
+    .select("id, bot_id, source_id, url, attempts")
+    .single();
 
-  if (jobError) {
+  if (jobError || !job) {
     logError("crawl_enqueue_failed", jobError, { bot_id: botId });
-    return NextResponse.json({ error: jobError.message }, { status: 500 });
+    return NextResponse.json({ error: jobError?.message ?? "Failed to start crawl" }, { status: 500 });
   }
 
-  log({
-    msg: "crawl_enqueued",
-    bot_id: botId,
-    source_id: sid,
-    ip: getClientIp(req),
-  });
+  log({ msg: "crawl_started", bot_id: botId, source_id: sid, ip: getClientIp(req) });
+
+  const result = await processCrawlJob(job);
+
+  if (!result.ok) {
+    return NextResponse.json({ error: result.error ?? "Crawl failed" }, { status: 500 });
+  }
 
   return NextResponse.json({
     ok: true,
-    enqueued: true,
+    chunks: result.chunks,
+    title: result.title,
     sourceId: sid,
-    message: "Crawl job enqueued. Refresh in a moment to see status.",
+    message: `Indexed ${result.chunks} chunks from ${result.title ?? targetUrl}`,
   });
 }

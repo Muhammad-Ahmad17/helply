@@ -3,11 +3,7 @@ import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { log, logError } from "@/lib/log";
 
-function verifyCronAuth(req: Request): boolean {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) return process.env.NODE_ENV !== "production";
-  return req.headers.get("authorization") === `Bearer ${secret}`;
-}
+import { verifyCronAuth } from "@/lib/crawl-worker";
 
 async function checkSupabase(): Promise<boolean> {
   const supabase = createServiceClient();
