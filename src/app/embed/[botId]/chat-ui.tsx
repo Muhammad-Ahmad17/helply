@@ -35,12 +35,33 @@ export function ChatUI({ botId, botName, welcome, color }: { botId: string; botN
     try {
       const apiBase =
         typeof window !== "undefined" ? window.location.origin : getAppUrl();
+
+      // Only send clean history (no error placeholders) — last 10 turns max
+      const history = messages
+        .filter(
+          (m) =>
+            m.content.trim() &&
+            !m.content.startsWith("Something went wrong")
+        )
+        .slice(-10);
+
+      const payload = {
+        botId,
+        visitorId: vid.current,
+        messages: [...history, { role: "user" as const, content: text }],
+      };
+
       const res = await fetch(`${apiBase}/api/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ botId, visitorId: vid.current, messages: next }),
+        body: JSON.stringify(payload),
       });
-      if (!res.ok || !res.body) throw new Error(`${res.status}`);
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error ?? `HTTP ${res.status}`);
+      }
+      if (!res.body) throw new Error("No response body");
       const reader = res.body.getReader();
       const dec = new TextDecoder();
       let acc = "";
