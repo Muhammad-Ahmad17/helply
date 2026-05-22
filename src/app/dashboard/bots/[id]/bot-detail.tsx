@@ -246,6 +246,11 @@ function SourcesTab({ bot, sources }: { bot: Bot; sources: Source[] }) {
           </button>
         </div>
         {newUrl && (
+          <p className="text-xs mt-2" style={{ color: "var(--fg-muted)" }}>
+            Use <strong>Crawl</strong> for one page. &quot;Crawl entire site&quot; is limited on free hosting — prefer single URLs.
+          </p>
+        )}
+        {newUrl && (
           <button
             onClick={() => crawl(undefined, newUrl, true)}
             disabled={!newUrl || pending}

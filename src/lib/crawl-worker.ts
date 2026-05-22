@@ -7,6 +7,9 @@ import type { CrawlJob } from "@/lib/types";
 
 export const MAX_CRAWL_ATTEMPTS = 2;
 
+/** Cap chunks per page so crawls finish within Vercel Hobby's ~10s limit. */
+export const MAX_CHUNKS_PER_CRAWL = 15;
+
 export interface CrawlJobInput {
   id: string;
   bot_id: string;
@@ -28,22 +31,63 @@ export function verifyCronAuth(req: Request): boolean {
   return req.headers.get("authorization") === `Bearer ${secret}`;
 }
 
+export function assertCrawlEnv(): string | null {
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return "SUPABASE_SERVICE_ROLE_KEY is not set on the server.";
+  }
+  if (!process.env.JINA_API_KEY) {
+    return "JINA_API_KEY is not set on the server.";
+  }
+  return null;
+}
+
+/** Get or create a source row for a URL. */
+export async function ensureSource(
+  botId: string,
+  url: string
+): Promise<{ id: string } | { error: string }> {
+  const service = createServiceClient();
+
+  const { data: existing } = await service
+    .from("sources")
+    .select("id")
+    .eq("bot_id", botId)
+    .eq("url", url)
+    .maybeSingle();
+
+  if (existing) return { id: existing.id };
+
+  const { data: inserted, error } = await service
+    .from("sources")
+    .insert({ bot_id: botId, url, status: "pending" })
+    .select("id")
+    .single();
+
+  if (error || !inserted) {
+    return { error: error?.message ?? "Failed to create source" };
+  }
+  return { id: inserted.id };
+}
+
 /**
  * Crawl a single source directly — no crawl_jobs table required.
- * Used for the common "Crawl one URL" button in the dashboard.
  */
 export async function processSourceCrawl(
   botId: string,
   sourceId: string,
   url: string
 ): Promise<CrawlJobResult> {
+  const envError = assertCrawlEnv();
+  if (envError) return { ok: false, error: envError };
+
   const service = createServiceClient();
 
   try {
     await service.from("sources").update({ status: "crawling" }).eq("id", sourceId);
 
     const result = await crawlUrl(url);
-    const chunks = chunkText(result.text);
+    const allChunks = chunkText(result.text);
+    const chunks = allChunks.slice(0, MAX_CHUNKS_PER_CRAWL);
 
     if (chunks.length === 0) {
       throw new Error("No text content found on page.");
@@ -67,13 +111,17 @@ export async function processSourceCrawl(
       if (insertError) throw new Error(insertError.message);
     }
 
+    const truncated = allChunks.length > chunks.length;
+
     await service
       .from("sources")
       .update({
         status: "ready",
         title: result.title,
         last_crawled_at: new Date().toISOString(),
-        error_message: null,
+        error_message: truncated
+          ? `Indexed first ${chunks.length} of ${allChunks.length} chunks (plan limit).`
+          : null,
       })
       .eq("id", sourceId);
 
@@ -95,31 +143,13 @@ export async function processSourceCrawl(
 
 /** Process one crawl job end-to-end (requires crawl_jobs table). */
 export async function processCrawlJob(job: CrawlJobInput): Promise<CrawlJobResult> {
-  const service = createServiceClient();
   let sid = job.source_id;
 
   try {
     if (!sid) {
-      const { data: existing } = await service
-        .from("sources")
-        .select("id")
-        .eq("bot_id", job.bot_id)
-        .eq("url", job.url)
-        .maybeSingle();
-
-      if (existing) {
-        sid = existing.id;
-      } else {
-        const { data: inserted, error } = await service
-          .from("sources")
-          .insert({ bot_id: job.bot_id, url: job.url, status: "pending" })
-          .select("id")
-          .single();
-        if (error || !inserted) {
-          throw new Error(error?.message ?? "Failed to create source");
-        }
-        sid = inserted.id;
-      }
+      const ensured = await ensureSource(job.bot_id, job.url);
+      if ("error" in ensured) throw new Error(ensured.error);
+      sid = ensured.id;
     }
 
     if (!sid) throw new Error("Source ID missing");
@@ -127,6 +157,7 @@ export async function processCrawlJob(job: CrawlJobInput): Promise<CrawlJobResul
     const result = await processSourceCrawl(job.bot_id, sid, job.url);
     if (!result.ok) throw new Error(result.error ?? "Crawl failed");
 
+    const service = createServiceClient();
     await service
       .from("crawl_jobs")
       .update({ status: "done", finished_at: new Date().toISOString(), last_error: null })
@@ -138,6 +169,7 @@ export async function processCrawlJob(job: CrawlJobInput): Promise<CrawlJobResul
     logError("crawl_job_failed", err, { bot_id: job.bot_id, url: job.url });
 
     if (sid) {
+      const service = createServiceClient();
       await service
         .from("sources")
         .update({ status: "error", error_message: message })
@@ -145,6 +177,7 @@ export async function processCrawlJob(job: CrawlJobInput): Promise<CrawlJobResul
     }
 
     try {
+      const service = createServiceClient();
       if (job.attempts < MAX_CRAWL_ATTEMPTS) {
         await service
           .from("crawl_jobs")
@@ -161,14 +194,14 @@ export async function processCrawlJob(job: CrawlJobInput): Promise<CrawlJobResul
           .eq("id", job.id);
       }
     } catch {
-      // crawl_jobs table may not exist — ignore
+      // crawl_jobs table may not exist
     }
 
     return { ok: false, error: message };
   }
 }
 
-/** Claim and process up to `limit` pending jobs (used by daily cron). */
+/** Claim and process pending jobs (daily cron). */
 export async function claimAndProcessJobs(limit = 5): Promise<number> {
   const service = createServiceClient();
   const { data: jobs, error } = await service.rpc("claim_crawl_jobs", { p_limit: limit });
@@ -181,4 +214,29 @@ export async function claimAndProcessJobs(limit = 5): Promise<number> {
   const claimed = (jobs ?? []) as CrawlJob[];
   await Promise.all(claimed.map((job) => processCrawlJob(job)));
   return claimed.length;
+}
+
+/** Crawl multiple URLs inline without crawl_jobs (Hobby-friendly). */
+export async function processUrlBatch(
+  botId: string,
+  urls: string[]
+): Promise<{ processed: number; errors: string[] }> {
+  let processed = 0;
+  const errors: string[] = [];
+
+  for (const pageUrl of urls) {
+    const ensured = await ensureSource(botId, pageUrl);
+    if ("error" in ensured) {
+      errors.push(`${pageUrl}: ${ensured.error}`);
+      continue;
+    }
+    const result = await processSourceCrawl(botId, ensured.id, pageUrl);
+    if (result.ok) {
+      processed++;
+    } else {
+      errors.push(`${pageUrl}: ${result.error ?? "failed"}`);
+    }
+  }
+
+  return { processed, errors };
 }
