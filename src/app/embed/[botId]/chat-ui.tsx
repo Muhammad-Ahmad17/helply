@@ -33,7 +33,9 @@ export function ChatUI({ botId, botName, welcome, color }: { botId: string; botN
     setMessages([...next, { role: "assistant", content: "" }]);
 
     try {
-      const res = await fetch(`${getAppUrl()}/api/chat`, {
+      const apiBase =
+        typeof window !== "undefined" ? window.location.origin : getAppUrl();
+      const res = await fetch(`${apiBase}/api/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ botId, visitorId: vid.current, messages: next }),

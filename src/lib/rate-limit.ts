@@ -24,9 +24,13 @@ function makeLimiter(
   });
 }
 
-export const chatLimiter = makeLimiter("chat", 20, "60 s");
-export const crawlLimiter = makeLimiter("crawl", 10, "1 h");
-export const loginLimiter = makeLimiter("login", 5, "15 m");
+export const chatLimiter = makeLimiter("chat", 30, "60 s");
+export const crawlLimiter = makeLimiter("crawl", 30, "1 h");
+export const loginLimiter = makeLimiter("login", 10, "15 m");
+
+export function isRateLimitDisabled(): boolean {
+  return process.env.DISABLE_RATE_LIMIT === "true";
+}
 
 export interface RateLimitResult {
   success: boolean;
@@ -46,6 +50,10 @@ export async function checkRateLimit(
   limiter: Ratelimit | null,
   key: string
 ): Promise<RateLimitResult> {
+  if (isRateLimitDisabled()) {
+    return noopResult;
+  }
+
   if (!limiter) {
     if (process.env.NODE_ENV === "production") {
       console.warn("[rate-limit] Upstash not configured — rate limiting disabled");

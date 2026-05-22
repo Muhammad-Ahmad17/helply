@@ -12,6 +12,16 @@ const bodySchema = z.object({
   next: z.string().optional(),
 });
 
+function isSupabaseRateLimit(message: string): boolean {
+  const lower = message.toLowerCase();
+  return (
+    lower.includes("rate limit") ||
+    lower.includes("too many requests") ||
+    lower.includes("once every") ||
+    lower.includes("security purposes")
+  );
+}
+
 export async function POST(req: Request) {
   const json = await req.json().catch(() => null);
   const parsed = bodySchema.safeParse(json);
@@ -25,23 +35,43 @@ export async function POST(req: Request) {
 
   const rate = await checkRateLimit(loginLimiter, rateKey);
   if (!rate.success) {
+    const waitMin = Math.max(1, Math.ceil((rate.reset - Date.now()) / 60_000));
     return NextResponse.json(
-      { error: "Too many login attempts. Try again in 15 minutes." },
-      { status: 429 }
+      {
+        error: `Too many login attempts for this email. Wait ${waitMin} minute(s) and try again.`,
+        source: "helply",
+      },
+      {
+        status: 429,
+        headers: { "Retry-After": String(Math.ceil((rate.reset - Date.now()) / 1000)) },
+      }
     );
   }
 
+  const appUrl = getAppUrl(req);
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithOtp({
     email,
     options: {
-      emailRedirectTo: `${getAppUrl()}/auth/callback?next=${encodeURIComponent(next)}`,
+      emailRedirectTo: `${appUrl}/auth/callback?next=${encodeURIComponent(next)}`,
     },
   });
 
   if (error) {
     log({ level: "warn", msg: "magic_link_failed", error: error.message });
-    return NextResponse.json({ error: error.message }, { status: 400 });
+
+    if (isSupabaseRateLimit(error.message)) {
+      return NextResponse.json(
+        {
+          error:
+            "Supabase email limit reached. Wait 60 seconds before trying again (applies to all emails from your network on the free tier).",
+          source: "supabase",
+        },
+        { status: 429 }
+      );
+    }
+
+    return NextResponse.json({ error: error.message, source: "supabase" }, { status: 400 });
   }
 
   log({ msg: "magic_link_sent", email: email.replace(/(.{2}).*(@.*)/, "$1***$2") });
