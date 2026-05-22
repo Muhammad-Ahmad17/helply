@@ -1,9 +1,9 @@
-// POST /api/chat
+// POST /api/chat — streams immediately to avoid Vercel Hobby 10s gateway timeout.
 import { streamText, type ModelMessage } from "ai";
 import { groq } from "@ai-sdk/groq";
 import { z } from "zod";
 import { createServiceClient } from "@/lib/supabase/service";
-import { embedQuery } from "@/lib/ai/embeddings";
+import { embedQueryWithTimeout } from "@/lib/ai/embeddings";
 import { chatLimiter, checkRateLimit } from "@/lib/rate-limit";
 import {
   getClientIp,
@@ -12,11 +12,15 @@ import {
   originMatchesAllowlist,
 } from "@/lib/security";
 import { log, logError } from "@/lib/log";
-import { maybeSendQuotaAlert } from "@/lib/quota-alerts";
 
-export const maxDuration = 30;
+// Hobby plan caps at 10s — Pro allows 60s+
+export const maxDuration = 10;
 
-const MAX_PAYLOAD_BYTES = 32 * 1024;
+const GROQ_MODEL =
+  process.env.GROQ_MODEL ?? "llama-3.1-8b-instant";
+
+const RAG_TIMEOUT_MS = 3500;
+const MAX_LLM_TOKENS = 512;
 
 const messageSchema = z.object({
   role: z.enum(["user", "assistant"]),
@@ -42,25 +46,54 @@ function corsHeaders(origin: string | null): HeadersInit {
 }
 
 function assertChatEnv(): string | null {
-  if (!process.env.GROQ_API_KEY) {
-    return "GROQ_API_KEY is not set on the server.";
-  }
-  if (!process.env.JINA_API_KEY) {
-    return "JINA_API_KEY is not set on the server.";
-  }
+  if (!process.env.GROQ_API_KEY) return "GROQ_API_KEY is not set on the server.";
+  if (!process.env.JINA_API_KEY) return "JINA_API_KEY is not set on the server.";
   if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
     return "SUPABASE_SERVICE_ROLE_KEY is not set on the server.";
   }
   return null;
 }
 
-/** Drop empty/error placeholder turns before sending to the LLM. */
 function sanitizeMessages(messages: { role: string; content: string }[]) {
-  return messages.filter(
-    (m) =>
-      m.content.trim().length > 0 &&
-      !m.content.startsWith("Something went wrong")
-  );
+  return messages
+    .filter(
+      (m) =>
+        m.content.trim().length > 0 &&
+        !m.content.startsWith("Something went wrong")
+    )
+    .slice(-8);
+}
+
+async function fetchRagContext(
+  supabase: ReturnType<typeof createServiceClient>,
+  botId: string,
+  query: string
+): Promise<string> {
+  const queryVec = await embedQueryWithTimeout(query, RAG_TIMEOUT_MS);
+  if (!queryVec) {
+    log({ level: "warn", msg: "rag_embed_timeout", bot_id: botId });
+    return "";
+  }
+
+  const { data: matches, error } = await supabase.rpc("match_chunks", {
+    query_embedding: queryVec,
+    match_bot_id: botId,
+    match_count: 4,
+  });
+
+  if (error) {
+    logError("match_chunks_failed", error, { bot_id: botId });
+    return "";
+  }
+
+  if (!matches?.length) return "";
+
+  return matches
+    .map(
+      (m: { content: string; similarity: number }, i: number) =>
+        `[Source ${i + 1}] (relevance ${m.similarity.toFixed(2)})\n${m.content}`
+    )
+    .join("\n\n---\n\n");
 }
 
 export async function OPTIONS(req: Request) {
@@ -69,10 +102,9 @@ export async function OPTIONS(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const start = Date.now();
-  const ip = getClientIp(req);
   const origin = req.headers.get("origin");
   const referer = req.headers.get("referer");
+  const ip = getClientIp(req);
   const userAgent = req.headers.get("user-agent");
 
   try {
@@ -82,96 +114,72 @@ export async function POST(req: Request) {
     }
 
     const rawBody = await req.text();
-    if (rawBody.length > MAX_PAYLOAD_BYTES) {
-      return Response.json(
-        { error: "Payload too large" },
-        { status: 413, headers: corsHeaders(origin) }
-      );
-    }
-
-    let json: unknown;
-    try {
-      json = JSON.parse(rawBody);
-    } catch {
-      return Response.json(
-        { error: "Invalid JSON" },
-        { status: 400, headers: corsHeaders(origin) }
-      );
-    }
-
-    const parsed = bodySchema.safeParse(json);
+    const parsed = bodySchema.safeParse(JSON.parse(rawBody || "{}"));
     if (!parsed.success) {
-      return Response.json(
-        { error: "Invalid request body" },
-        { status: 400, headers: corsHeaders(origin) }
-      );
+      return Response.json({ error: "Invalid request body" }, { status: 400, headers: corsHeaders(origin) });
     }
 
     const { botId, messages: rawMessages } = parsed.data;
     const messages = sanitizeMessages(rawMessages);
-
     if (messages.length === 0) {
-      return Response.json(
-        { error: "No valid messages" },
-        { status: 400, headers: corsHeaders(origin) }
-      );
+      return Response.json({ error: "No valid messages" }, { status: 400, headers: corsHeaders(origin) });
+    }
+
+    const latestUser = [...messages].reverse().find((m) => m.role === "user");
+    if (!latestUser) {
+      return Response.json({ error: "No user message" }, { status: 400, headers: corsHeaders(origin) });
     }
 
     const supabase = createServiceClient();
-
     const { data: bot, error: botError } = await supabase
       .from("bots")
       .select("*")
       .eq("id", botId)
       .maybeSingle();
 
-    if (botError) {
-      logError("chat_bot_lookup_failed", botError, { bot_id: botId });
+    if (botError || !bot) {
       return Response.json(
-        { error: botError.message },
-        { status: 500, headers: corsHeaders(origin) }
-      );
-    }
-
-    if (!bot) {
-      return Response.json(
-        { error: "Bot not found" },
-        { status: 404, headers: corsHeaders(origin) }
+        { error: botError?.message ?? "Bot not found" },
+        { status: botError ? 500 : 404, headers: corsHeaders(origin) }
       );
     }
 
     const allowedOrigins = (bot as { allowed_origins?: string[] }).allowed_origins ?? [];
-    const { allowed, matchedOrigin } = originMatchesAllowlist(
-      origin,
-      referer,
-      allowedOrigins
-    );
-
+    const { allowed, matchedOrigin } = originMatchesAllowlist(origin, referer, allowedOrigins);
     if (!allowed) {
-      log({ level: "warn", msg: "origin_blocked", bot_id: botId, origin, referer });
       return Response.json(
-        { error: "Origin not allowed. Add this domain in bot Settings → Allowed domains." },
+        { error: "Origin not allowed. Add this domain in bot Settings." },
         { status: 403, headers: corsHeaders(null) }
       );
     }
 
-    const rateKey = `${botId}:${ip}`;
-    let rate;
+    let rateOk = true;
     try {
-      rate = await checkRateLimit(chatLimiter, rateKey);
+      const rate = await checkRateLimit(chatLimiter, `${botId}:${ip}`);
+      rateOk = rate.success;
     } catch {
-      rate = { success: true, limit: 999, remaining: 999, reset: Date.now() + 60_000 };
+      // fail open
+    }
+    if (!rateOk) {
+      return Response.json({ error: "Too many requests" }, { status: 429, headers: corsHeaders(matchedOrigin) });
     }
 
-    if (!rate.success) {
-      const retryAfter = Math.max(1, Math.ceil((rate.reset - Date.now()) / 1000));
-      return Response.json(
-        { error: "Too many requests" },
+    const { data: quotaRows, error: quotaError } = await supabase.rpc(
+      "consume_message_quota",
+      { p_bot_id: botId }
+    );
+    if (quotaError) {
+      logError("quota_check_failed", quotaError, { bot_id: botId });
+    }
+    const quota = quotaRows?.[0] as { allowed: boolean } | undefined;
+    if (quota && !quota.allowed) {
+      return new Response(
+        "This chatbot has reached its monthly message limit. Please contact the site owner.",
         {
-          status: 429,
+          status: 200,
           headers: {
-            ...corsHeaders(matchedOrigin),
-            "Retry-After": String(retryAfter),
+            ...Object.fromEntries(Object.entries(corsHeaders(matchedOrigin))),
+            "Content-Type": "text/plain; charset=utf-8",
           },
         }
       );
@@ -180,104 +188,61 @@ export async function POST(req: Request) {
     const visitorId = signVisitorId(botId, ip, userAgent);
     const ipHash = hashIp(ip);
 
-    const { data: quotaRows, error: quotaError } = await supabase.rpc(
-      "consume_message_quota",
-      { p_bot_id: botId }
-    );
+    const systemPromptBase = bot.system_prompt as string;
+    const llmMessages = messages as ModelMessage[];
 
-    if (quotaError) {
-      // Quota RPC missing or broken — log but don't block chat
-      logError("quota_check_failed", quotaError, { bot_id: botId });
-    }
+    // Return stream IMMEDIATELY — RAG + Groq run inside (prevents 504 before first byte)
+    const encoder = new TextEncoder();
+    const cors = corsHeaders(matchedOrigin);
 
-    const quota = quotaRows?.[0] as
-      | { allowed: boolean; remaining: number; plan: string }
-      | undefined;
-
-    if (quota && !quota.allowed) {
-      void maybeSendQuotaAlert(botId, quota.plan, 0);
-      return new Response(
-        "This chatbot has reached its monthly message limit. The site owner has been notified.",
-        {
-          status: 200,
-          headers: {
-            ...corsHeaders(matchedOrigin),
-            "Content-Type": "text/plain; charset=utf-8",
-          },
-        }
-      );
-    }
-
-    if (quota?.allowed) {
-      void maybeSendQuotaAlert(botId, quota.plan, quota.remaining);
-    }
-
-    const latestUser = [...messages].reverse().find((m) => m.role === "user");
-    if (!latestUser) {
-      return Response.json(
-        { error: "No user message provided" },
-        { status: 400, headers: corsHeaders(matchedOrigin) }
-      );
-    }
-
-    let context = "";
-    try {
-      const queryVec = await embedQuery(latestUser.content);
-      const { data: matches, error: matchError } = await supabase.rpc("match_chunks", {
-        query_embedding: queryVec,
-        match_bot_id: botId,
-        match_count: 6,
-      });
-
-      if (matchError) {
-        logError("match_chunks_failed", matchError, { bot_id: botId });
-      } else if (matches && matches.length > 0) {
-        context = matches
-          .map(
-            (m: { content: string; similarity: number }, i: number) =>
-              `[Source ${i + 1}] (relevance ${m.similarity.toFixed(2)})\n${m.content}`
-          )
-          .join("\n\n---\n\n");
-      }
-    } catch (err) {
-      logError("rag_retrieval_failed", err, { bot_id: botId });
-    }
-
-    const systemPrompt = buildSystemPrompt(bot.system_prompt, context);
-
-    const result = streamText({
-      model: groq("llama-3.3-70b-versatile"),
-      system: systemPrompt,
-      messages: messages as ModelMessage[],
-      temperature: 0.3,
-      onFinish: async ({ text }) => {
+    const body = new ReadableStream({
+      async start(controller) {
+        // Flush headers immediately so Vercel gateway doesn't 504 while RAG runs
+        controller.enqueue(encoder.encode(""));
         try {
-          await logConversation(botId, visitorId, ipHash, latestUser.content, text);
+          const context = await fetchRagContext(supabase, botId, latestUser.content);
+          const systemPrompt = buildSystemPrompt(systemPromptBase, context);
+
+          const result = streamText({
+            model: groq(GROQ_MODEL),
+            system: systemPrompt,
+            messages: llmMessages,
+            temperature: 0.3,
+            maxOutputTokens: MAX_LLM_TOKENS,
+          });
+
+          let fullText = "";
+          for await (const chunk of result.textStream) {
+            fullText += chunk;
+            controller.enqueue(encoder.encode(chunk));
+          }
+          controller.close();
+
+          log({ msg: "chat_done", bot_id: botId, chars: fullText.length });
+
+          void logConversation(botId, visitorId, ipHash, latestUser.content, fullText);
         } catch (err) {
-          logError("conversation_log_failed", err, { bot_id: botId });
+          logError("chat_stream_failed", err, { bot_id: botId });
+          controller.enqueue(
+            encoder.encode("Sorry, that took too long. Please try a shorter question.")
+          );
+          controller.close();
         }
       },
     });
 
-    log({
-      msg: "chat_request",
-      bot_id: botId,
-      latency_ms: Date.now() - start,
+    return new Response(body, {
+      headers: {
+        ...Object.fromEntries(Object.entries(cors)),
+        "Content-Type": "text/plain; charset=utf-8",
+        "Cache-Control": "no-cache",
+        "X-Accel-Buffering": "no",
+      },
     });
-
-    const response = result.toTextStreamResponse();
-    const headers = new Headers(response.headers);
-    for (const [k, v] of Object.entries(corsHeaders(matchedOrigin))) {
-      headers.set(k, v);
-    }
-    return new Response(response.body, { status: response.status, headers });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    logError("chat_unhandled", err, { bot_id: "unknown" });
-    return Response.json(
-      { error: message },
-      { status: 500, headers: corsHeaders(origin) }
-    );
+    logError("chat_unhandled", err);
+    return Response.json({ error: message }, { status: 500, headers: corsHeaders(origin) });
   }
 }
 
@@ -308,37 +273,41 @@ async function logConversation(
   userMessage: string,
   assistantMessage: string
 ) {
-  const supabase = createServiceClient();
-  const { data: conv } = await supabase
-    .from("conversations")
-    .select("id")
-    .eq("bot_id", botId)
-    .eq("visitor_id", visitorId)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  let convId = conv?.id;
-  if (!convId) {
-    let { data: created, error } = await supabase
+  try {
+    const supabase = createServiceClient();
+    const { data: conv } = await supabase
       .from("conversations")
-      .insert({ bot_id: botId, visitor_id: visitorId, ip_hash: ipHash })
       .select("id")
-      .single();
+      .eq("bot_id", botId)
+      .eq("visitor_id", visitorId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-    if (error?.message.includes("ip_hash")) {
-      ({ data: created } = await supabase
+    let convId = conv?.id;
+    if (!convId) {
+      let { data: created, error } = await supabase
         .from("conversations")
-        .insert({ bot_id: botId, visitor_id: visitorId })
+        .insert({ bot_id: botId, visitor_id: visitorId, ip_hash: ipHash })
         .select("id")
-        .single());
-    }
-    convId = created?.id;
-  }
-  if (!convId) return;
+        .single();
 
-  await supabase.from("messages").insert([
-    { conversation_id: convId, role: "user", content: userMessage },
-    { conversation_id: convId, role: "assistant", content: assistantMessage },
-  ]);
+      if (error?.message.includes("ip_hash")) {
+        ({ data: created } = await supabase
+          .from("conversations")
+          .insert({ bot_id: botId, visitor_id: visitorId })
+          .select("id")
+          .single());
+      }
+      convId = created?.id;
+    }
+    if (!convId) return;
+
+    await supabase.from("messages").insert([
+      { conversation_id: convId, role: "user", content: userMessage },
+      { conversation_id: convId, role: "assistant", content: assistantMessage },
+    ]);
+  } catch (err) {
+    logError("conversation_log_failed", err, { bot_id: botId });
+  }
 }

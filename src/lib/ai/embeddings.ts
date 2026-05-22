@@ -68,4 +68,19 @@ export async function embedQuery(text: string): Promise<number[]> {
   return vec;
 }
 
+/** Race embed against a timeout — returns null if Jina is too slow (Hobby 10s limit). */
+export async function embedQueryWithTimeout(
+  text: string,
+  timeoutMs = 3500
+): Promise<number[] | null> {
+  try {
+    return await Promise.race([
+      embedQuery(text),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), timeoutMs)),
+    ]);
+  } catch {
+    return null;
+  }
+}
+
 export const EMBEDDING_DIM = DIM;
