@@ -11,8 +11,10 @@ import {
   ExternalLink,
   AlertCircle,
   CheckCircle2,
+  Globe,
 } from "lucide-react";
 import type { Bot, Source } from "@/lib/types";
+import { PLAN_LIMITS } from "@/lib/types";
 import { deleteBot, updateBot } from "@/app/dashboard/actions";
 import { getAppUrl } from "@/lib/utils";
 
@@ -25,11 +27,12 @@ export function BotDetail({
   sources: Source[];
   chunkCount: number;
 }) {
-  const [tab, setTab] = useState<"embed" | "sources" | "settings">("embed");
+  const [tab, setTab] = useState<"embed" | "sources" | "usage" | "settings">("embed");
 
   const tabs = [
     { id: "embed" as const, label: "Embed" },
     { id: "sources" as const, label: "Sources" },
+    { id: "usage" as const, label: "Usage" },
     { id: "settings" as const, label: "Settings" },
   ];
 
@@ -41,7 +44,8 @@ export function BotDetail({
             {bot.name}
           </h1>
           <p className="text-sm mt-0.5" style={{ color: "var(--fg-muted)" }}>
-            {chunkCount} chunks · {sources.length} source{sources.length !== 1 ? "s" : ""}
+            {chunkCount} chunks · {sources.length} source{sources.length !== 1 ? "s" : ""} ·{" "}
+            <span className="capitalize">{bot.plan ?? "free"}</span> plan
           </p>
         </div>
         <DeleteButton botId={bot.id} />
@@ -70,7 +74,66 @@ export function BotDetail({
       <div className="anim-fade-in">
         {tab === "embed" && <EmbedTab bot={bot} chunkCount={chunkCount} />}
         {tab === "sources" && <SourcesTab bot={bot} sources={sources} />}
+        {tab === "usage" && <UsageTab bot={bot} />}
         {tab === "settings" && <SettingsTab bot={bot} />}
+      </div>
+    </div>
+  );
+}
+
+function UsageTab({ bot }: { bot: Bot }) {
+  const plan = (bot.plan ?? "free") as keyof typeof PLAN_LIMITS;
+  const limits = PLAN_LIMITS[plan] ?? PLAN_LIMITS.free;
+  const used = bot.monthly_message_count ?? 0;
+  const pct = Math.min(100, Math.round((used / limits.messages) * 100));
+
+  return (
+    <div className="space-y-4 max-w-lg">
+      <div className="card p-5">
+        <p className="text-sm font-medium mb-1" style={{ color: "var(--fg)" }}>
+          Messages this month
+        </p>
+        <p className="text-2xl font-medium tracking-tight mb-4" style={{ color: "var(--fg)" }}>
+          {used.toLocaleString()}
+          <span className="text-sm font-normal" style={{ color: "var(--fg-muted)" }}>
+            {" "}/ {limits.messages.toLocaleString()}
+          </span>
+        </p>
+        <div
+          className="h-2 rounded-full overflow-hidden mb-2"
+          style={{ background: "var(--bg-subtle)" }}
+        >
+          <div
+            className="h-full rounded-full transition-all"
+            style={{
+              width: `${pct}%`,
+              background: pct >= 90 ? "#ef4444" : pct >= 70 ? "#f59e0b" : "var(--fg)",
+            }}
+          />
+        </div>
+        <p className="text-xs" style={{ color: "var(--fg-muted)" }}>
+          {limits.messages - used > 0
+            ? `${(limits.messages - used).toLocaleString()} messages remaining`
+            : "Monthly limit reached — upgrade to continue"}
+        </p>
+      </div>
+
+      <div className="card p-5">
+        <p className="text-sm font-medium mb-3" style={{ color: "var(--fg)" }}>Plan limits</p>
+        <ul className="space-y-2 text-sm">
+          <li className="flex justify-between" style={{ color: "var(--fg-secondary)" }}>
+            <span>Plan</span>
+            <span className="capitalize font-medium" style={{ color: "var(--fg)" }}>{plan}</span>
+          </li>
+          <li className="flex justify-between" style={{ color: "var(--fg-secondary)" }}>
+            <span>Messages / month</span>
+            <span className="font-medium" style={{ color: "var(--fg)" }}>{limits.messages.toLocaleString()}</span>
+          </li>
+          <li className="flex justify-between" style={{ color: "var(--fg-secondary)" }}>
+            <span>Pages indexed</span>
+            <span className="font-medium" style={{ color: "var(--fg)" }}>{limits.pages.toLocaleString()}</span>
+          </li>
+        </ul>
       </div>
     </div>
   );
@@ -140,21 +203,24 @@ function SourcesTab({ bot, sources }: { bot: Bot; sources: Source[] }) {
   const [newUrl, setNewUrl] = useState("");
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
-  function crawl(sourceId?: string, url?: string) {
+  function crawl(sourceId?: string, url?: string, crawlSite?: boolean) {
     setError(null);
+    setSuccess(null);
     startTransition(async () => {
       const res = await fetch("/api/crawl", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ botId: bot.id, sourceId, url }),
+        body: JSON.stringify({ botId: bot.id, sourceId, url, crawlSite }),
       });
+      const body = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
         setError(body.error ?? "Crawl failed");
       } else {
         setNewUrl("");
-        window.location.reload();
+        setSuccess(body.message ?? "Crawl enqueued");
+        setTimeout(() => window.location.reload(), 1500);
       }
     });
   }
@@ -179,7 +245,18 @@ function SourcesTab({ bot, sources }: { bot: Bot; sources: Source[] }) {
             Crawl
           </button>
         </div>
+        {newUrl && (
+          <button
+            onClick={() => crawl(undefined, newUrl, true)}
+            disabled={!newUrl || pending}
+            className="btn btn-secondary mt-2 text-xs"
+          >
+            <Globe className="w-3.5 h-3.5" />
+            Crawl entire site (sitemap)
+          </button>
+        )}
         {error && <p className="text-xs text-red-500 mt-2">{error}</p>}
+        {success && <p className="text-xs text-emerald-500 mt-2">{success}</p>}
       </div>
 
       {sources.length > 0 && (
@@ -245,6 +322,7 @@ function SettingsTab({ bot }: { bot: Bot }) {
   const [pending, startTransition] = useTransition();
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const allowedOriginsValue = (bot.allowed_origins ?? []).join("\n");
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -265,6 +343,21 @@ function SettingsTab({ bot }: { bot: Bot }) {
     <form onSubmit={onSubmit} className="card p-5 space-y-4 max-w-lg">
       <Field label="Name" name="name" defaultValue={bot.name} />
       <Field label="Welcome message" name="welcome_message" defaultValue={bot.welcome_message} />
+      <div>
+        <label className="text-xs font-medium mb-1.5 block" style={{ color: "var(--fg-secondary)" }}>
+          Allowed domains
+        </label>
+        <textarea
+          name="allowed_origins"
+          defaultValue={allowedOriginsValue}
+          rows={3}
+          placeholder={"https://example.com\nhttps://www.example.com"}
+          className="input h-auto py-2 resize-y font-mono text-xs"
+        />
+        <p className="text-xs mt-1" style={{ color: "var(--fg-muted)" }}>
+          One origin per line. Leave empty to allow all origins during setup. Use * to explicitly allow all.
+        </p>
+      </div>
       <div>
         <label className="text-xs font-medium mb-1.5 block" style={{ color: "var(--fg-secondary)" }}>
           Color

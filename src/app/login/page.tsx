@@ -4,8 +4,6 @@ import { useState, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Loader2, CheckCircle2, ArrowLeft } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
-import { getAppUrl } from "@/lib/utils";
 import { SiteFooter } from "@/components/site-footer";
 
 function LoginForm() {
@@ -21,17 +19,16 @@ function LoginForm() {
     setStatus("sending");
     setError(null);
 
-    const supabase = createClient();
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo: `${getAppUrl()}/auth/callback?next=${encodeURIComponent(next)}`,
-      },
+    const res = await fetch("/api/auth/magic-link", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, next }),
     });
 
-    if (error) {
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
       setStatus("error");
-      setError(error.message);
+      setError(body.error ?? "Failed to send magic link");
       return;
     }
     setStatus("sent");

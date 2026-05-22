@@ -74,11 +74,14 @@ export async function deleteBot(botId: string) {
   redirect("/dashboard");
 }
 
+import { parseAllowedOriginsInput } from "@/lib/security";
+
 const updateBotSchema = z.object({
   name: z.string().min(2).max(60),
   welcome_message: z.string().min(1).max(200),
   primary_color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
   system_prompt: z.string().min(10).max(2000),
+  allowed_origins: z.string().optional(),
 });
 
 export async function updateBot(botId: string, formData: FormData) {
@@ -87,15 +90,24 @@ export async function updateBot(botId: string, formData: FormData) {
     welcome_message: formData.get("welcome_message"),
     primary_color: formData.get("primary_color"),
     system_prompt: formData.get("system_prompt"),
+    allowed_origins: formData.get("allowed_origins"),
   });
   if (!parsed.success) {
     return { error: "Invalid input." };
   }
 
+  const allowedOrigins = parseAllowedOriginsInput(parsed.data.allowed_origins ?? "");
+
   const supabase = await createClient();
   const { error } = await supabase
     .from("bots")
-    .update(parsed.data)
+    .update({
+      name: parsed.data.name,
+      welcome_message: parsed.data.welcome_message,
+      primary_color: parsed.data.primary_color,
+      system_prompt: parsed.data.system_prompt,
+      allowed_origins: allowedOrigins,
+    })
     .eq("id", botId);
   if (error) return { error: error.message };
 

@@ -1,10 +1,11 @@
-// Jina AI embeddings client.
-// Why Jina: free tier ~1M tokens/month, simple REST API, 1024-dim vectors,
-// no client-side wasm bundle. To swap providers later, change only this file.
+// Jina AI embeddings client with batching and concurrency control.
+import pLimit from "p-limit";
 
 const JINA_API = "https://api.jina.ai/v1/embeddings";
 const MODEL = "jina-embeddings-v3";
 const DIM = 1024;
+const BATCH_SIZE = 32;
+const CONCURRENCY = 2;
 
 type Task = "retrieval.passage" | "retrieval.query";
 
@@ -12,6 +13,8 @@ interface JinaResponse {
   data: Array<{ embedding: number[]; index: number }>;
   usage?: { total_tokens: number; prompt_tokens: number };
 }
+
+const limit = pLimit(CONCURRENCY);
 
 async function callJina(texts: string[], task: Task): Promise<number[][]> {
   if (!process.env.JINA_API_KEY) {
@@ -38,24 +41,28 @@ async function callJina(texts: string[], task: Task): Promise<number[][]> {
   }
 
   const json = (await res.json()) as JinaResponse;
-  return json.data
-    .sort((a, b) => a.index - b.index)
-    .map((d) => d.embedding);
+  return json.data.sort((a, b) => a.index - b.index).map((d) => d.embedding);
 }
 
-/**
- * Embed text(s) for STORING in the DB (a document/passage being indexed).
- * Jina v3 produces task-specific embeddings; using the right task improves
- * retrieval quality by 5-15% vs a generic embedding.
- */
-export async function embedPassages(texts: string[]): Promise<number[][]> {
+async function callJinaBatched(texts: string[], task: Task): Promise<number[][]> {
   if (texts.length === 0) return [];
-  return callJina(texts, "retrieval.passage");
+
+  const batches: string[][] = [];
+  for (let i = 0; i < texts.length; i += BATCH_SIZE) {
+    batches.push(texts.slice(i, i + BATCH_SIZE));
+  }
+
+  const results = await Promise.all(
+    batches.map((batch) => limit(() => callJina(batch, task)))
+  );
+
+  return results.flat();
 }
 
-/**
- * Embed a search QUERY (the user's chat question).
- */
+export async function embedPassages(texts: string[]): Promise<number[][]> {
+  return callJinaBatched(texts, "retrieval.passage");
+}
+
 export async function embedQuery(text: string): Promise<number[]> {
   const [vec] = await callJina([text], "retrieval.query");
   return vec;

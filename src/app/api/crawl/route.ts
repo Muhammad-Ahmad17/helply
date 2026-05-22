@@ -1,14 +1,13 @@
 // POST /api/crawl
-// Authenticated endpoint that fetches a URL, chunks the text, embeds each
-// chunk, and stores them in pgvector. Owners only — RLS enforced by reading
-// the bot through the request-bound Supabase client first.
+// Authenticated endpoint — enqueues a crawl job (or runs inline for single URL).
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
-import { crawlUrl } from "@/lib/crawler";
-import { chunkText } from "@/lib/ai/chunk";
-import { embedPassages } from "@/lib/ai/embeddings";
+import { assertSafeUrl, UnsafeUrlError, discoverFromSitemap } from "@/lib/crawler";
+import { crawlLimiter, checkRateLimit } from "@/lib/rate-limit";
+import { getClientIp } from "@/lib/security";
+import { log, logError } from "@/lib/log";
 
 export const maxDuration = 60;
 
@@ -16,6 +15,7 @@ const bodySchema = z.object({
   botId: z.string().uuid(),
   sourceId: z.string().uuid().optional(),
   url: z.string().url().optional(),
+  crawlSite: z.boolean().optional(),
 });
 
 export async function POST(req: Request) {
@@ -28,7 +28,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const { botId, sourceId, url } = parsed.data;
+  const { botId, sourceId, url, crawlSite } = parsed.data;
 
   const supabase = await createClient();
   const {
@@ -36,17 +36,75 @@ export async function POST(req: Request) {
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  const rate = await checkRateLimit(crawlLimiter, user.id);
+  if (!rate.success) {
+    return NextResponse.json(
+      { error: "Crawl rate limit exceeded. Try again later." },
+      { status: 429 }
+    );
+  }
+
   const { data: bot } = await supabase
     .from("bots")
-    .select("id, owner_id")
+    .select("id, owner_id, plan")
     .eq("id", botId)
     .maybeSingle();
   if (!bot) return NextResponse.json({ error: "Bot not found" }, { status: 404 });
 
   const service = createServiceClient();
 
+  if (crawlSite && url) {
+    try {
+      await assertSafeUrl(url);
+    } catch (err) {
+      const message =
+        err instanceof UnsafeUrlError ? err.message : "Unsafe URL blocked";
+      return NextResponse.json({ error: message }, { status: 400 });
+    }
+
+    const discovered = await discoverFromSitemap(url, bot.plan ?? "free");
+    if (discovered.length === 0) {
+      return NextResponse.json({ error: "No URLs discovered" }, { status: 400 });
+    }
+
+    const jobs = discovered.map((discoveredUrl) => ({
+      bot_id: botId,
+      url: discoveredUrl,
+      status: "pending" as const,
+    }));
+
+    const { error: jobError } = await service.from("crawl_jobs").insert(jobs);
+    if (jobError) {
+      return NextResponse.json({ error: jobError.message }, { status: 500 });
+    }
+
+    log({
+      msg: "site_crawl_enqueued",
+      bot_id: botId,
+      user_id: user.id,
+      url_count: discovered.length,
+    });
+
+    return NextResponse.json({
+      ok: true,
+      enqueued: discovered.length,
+      message: `Enqueued ${discovered.length} URLs for crawling`,
+    });
+  }
+
   let sid = sourceId;
   let targetUrl = url;
+
+  if (targetUrl) {
+    try {
+      await assertSafeUrl(targetUrl);
+    } catch (err) {
+      const message =
+        err instanceof UnsafeUrlError ? err.message : "Unsafe URL blocked";
+      return NextResponse.json({ error: message }, { status: 400 });
+    }
+  }
+
   if (sid) {
     const { data: existing } = await service
       .from("sources")
@@ -85,56 +143,29 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Bad state" }, { status: 500 });
   }
 
-  await service.from("sources").update({ status: "crawling" }).eq("id", sid);
+  const { error: jobError } = await service.from("crawl_jobs").insert({
+    bot_id: botId,
+    source_id: sid,
+    url: targetUrl,
+    status: "pending",
+  });
 
-  try {
-    const result = await crawlUrl(targetUrl);
-    const chunks = chunkText(result.text);
-
-    if (chunks.length === 0) {
-      throw new Error("No text content found on page.");
-    }
-
-    await service.from("chunks").delete().eq("source_id", sid);
-
-    const embeddings = await embedPassages(chunks.map((c) => c.content));
-
-    const rows = chunks.map((c, i) => ({
-      bot_id: botId,
-      source_id: sid,
-      content: c.content,
-      embedding: embeddings[i],
-      token_count: c.tokenCount,
-    }));
-
-    // Insert in batches of 50 to keep request bodies under Supabase limits.
-    for (let i = 0; i < rows.length; i += 50) {
-      const slice = rows.slice(i, i + 50);
-      const { error: insertError } = await service.from("chunks").insert(slice);
-      if (insertError) throw new Error(insertError.message);
-    }
-
-    await service
-      .from("sources")
-      .update({
-        status: "ready",
-        title: result.title,
-        last_crawled_at: new Date().toISOString(),
-        error_message: null,
-      })
-      .eq("id", sid);
-
-    return NextResponse.json({
-      ok: true,
-      chunks: chunks.length,
-      title: result.title,
-    });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    await service
-      .from("sources")
-      .update({ status: "error", error_message: message })
-      .eq("id", sid);
-    return NextResponse.json({ error: message }, { status: 500 });
+  if (jobError) {
+    logError("crawl_enqueue_failed", jobError, { bot_id: botId });
+    return NextResponse.json({ error: jobError.message }, { status: 500 });
   }
+
+  log({
+    msg: "crawl_enqueued",
+    bot_id: botId,
+    source_id: sid,
+    ip: getClientIp(req),
+  });
+
+  return NextResponse.json({
+    ok: true,
+    enqueued: true,
+    sourceId: sid,
+    message: "Crawl job enqueued. Refresh in a moment to see status.",
+  });
 }
