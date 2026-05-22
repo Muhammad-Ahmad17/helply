@@ -5,7 +5,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { assertSafeUrl, UnsafeUrlError, discoverFromSitemap } from "@/lib/crawler";
-import { processCrawlJob } from "@/lib/crawl-worker";
+import { processSourceCrawl, processCrawlJob } from "@/lib/crawl-worker";
 import { crawlLimiter, checkRateLimit } from "@/lib/rate-limit";
 import { getClientIp } from "@/lib/security";
 import { log, logError } from "@/lib/log";
@@ -47,11 +47,15 @@ export async function POST(req: Request) {
     );
   }
 
-  const { data: bot } = await supabase
+  const { data: bot, error: botError } = await supabase
     .from("bots")
     .select("id, owner_id, plan")
     .eq("id", botId)
     .maybeSingle();
+  if (botError) {
+    logError("crawl_bot_lookup_failed", botError, { bot_id: botId });
+    return NextResponse.json({ error: botError.message }, { status: 500 });
+  }
   if (!bot) return NextResponse.json({ error: "Bot not found" }, { status: 404 });
 
   const service = createServiceClient();
@@ -166,27 +170,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Bad state" }, { status: 500 });
   }
 
-  const { data: job, error: jobError } = await service
-    .from("crawl_jobs")
-    .insert({
-      bot_id: botId,
-      source_id: sid,
-      url: targetUrl,
-      status: "running",
-      started_at: new Date().toISOString(),
-      attempts: 1,
-    })
-    .select("id, bot_id, source_id, url, attempts")
-    .single();
-
-  if (jobError || !job) {
-    logError("crawl_enqueue_failed", jobError, { bot_id: botId });
-    return NextResponse.json({ error: jobError?.message ?? "Failed to start crawl" }, { status: 500 });
-  }
-
   log({ msg: "crawl_started", bot_id: botId, source_id: sid, ip: getClientIp(req) });
 
-  const result = await processCrawlJob(job);
+  // Direct crawl — does not require crawl_jobs table
+  const result = await processSourceCrawl(botId, sid, targetUrl);
 
   if (!result.ok) {
     return NextResponse.json({ error: result.error ?? "Crawl failed" }, { status: 500 });

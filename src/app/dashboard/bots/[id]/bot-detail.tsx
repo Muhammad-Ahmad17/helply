@@ -217,11 +217,11 @@ function SourcesTab({ bot, sources }: { bot: Bot; sources: Source[] }) {
       const body = await res.json().catch(() => ({}));
       if (!res.ok) {
         setError(body.error ?? "Crawl failed");
-      } else {
-        setNewUrl("");
-        setSuccess(body.message ?? "Crawl enqueued");
-        setTimeout(() => window.location.reload(), 1500);
+        return;
       }
+      setNewUrl("");
+      setSuccess(body.message ?? "Crawl complete");
+      setTimeout(() => window.location.reload(), 1500);
     });
   }
 
