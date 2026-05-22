@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Bot, LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { logout } from "./actions";
+import { SiteFooter } from "@/components/site-footer";
 
 export default async function DashboardLayout({
   children,
@@ -17,26 +17,33 @@ export default async function DashboardLayout({
   if (!user) redirect("/login");
 
   return (
-    <div className="min-h-screen">
-      <header className="border-b border-[var(--color-border)] bg-[var(--color-bg)]/80 backdrop-blur sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
-          <Link href="/dashboard" className="flex items-center gap-2 font-semibold">
-            <Bot className="w-5 h-5 text-[var(--color-brand)]" />
-            Helply
-          </Link>
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-[var(--color-muted)] hidden sm:inline">
-              {user.email}
-            </span>
-            <form action={logout}>
-              <button className="btn btn-secondary" type="submit" title="Sign out">
-                <LogOut className="w-4 h-4" />
-              </button>
-            </form>
-          </div>
+    <div className="min-h-screen flex flex-col" style={{ background: "var(--bg)" }}>
+      <header
+        className="sticky top-0 z-50 flex items-center justify-between px-5 h-14"
+        style={{
+          background: "color-mix(in srgb, var(--bg) 90%, transparent)",
+          backdropFilter: "blur(12px)",
+          borderBottom: "1px solid var(--border)",
+        }}
+      >
+        <Link href="/dashboard" className="text-sm font-medium" style={{ color: "var(--fg)" }}>
+          Helply
+        </Link>
+        <div className="flex items-center gap-2">
+          <span className="text-xs hidden sm:inline" style={{ color: "var(--fg-muted)" }}>
+            {user.email}
+          </span>
+          <form action={logout}>
+            <button type="submit" className="btn btn-ghost text-xs">
+              Sign out
+            </button>
+          </form>
         </div>
       </header>
-      <main className="max-w-6xl mx-auto px-6 py-8">{children}</main>
+
+      <main className="flex-1 max-w-5xl w-full mx-auto px-5 py-10">{children}</main>
+
+      <SiteFooter />
     </div>
   );
 }

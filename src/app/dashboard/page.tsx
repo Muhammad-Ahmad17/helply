@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Bot as BotIcon, Plus } from "lucide-react";
+import { Plus, ChevronRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import type { Bot } from "@/lib/types";
 
@@ -12,60 +12,65 @@ export default async function DashboardPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-end justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold">Your bots</h1>
-          <p className="text-sm text-[var(--color-muted)]">
-            Each bot is trained on one or more URLs from a single site.
+          <h1 className="text-xl font-medium tracking-tight" style={{ color: "var(--fg)" }}>
+            Bots
+          </h1>
+          <p className="text-sm mt-1" style={{ color: "var(--fg-secondary)" }}>
+            AI assistants trained on your website content.
           </p>
         </div>
         <Link href="/dashboard/bots/new" className="btn btn-primary">
-          <Plus className="w-4 h-4" />
-          New bot
+          <Plus className="w-4 h-4" /> New bot
         </Link>
       </div>
 
-      {(!bots || bots.length === 0) ? (
-        <EmptyState />
+      {!bots || bots.length === 0 ? (
+        <div className="card p-16 text-center">
+          <p className="text-sm font-medium mb-1" style={{ color: "var(--fg)" }}>
+            No bots yet
+          </p>
+          <p className="text-sm mb-6 max-w-xs mx-auto" style={{ color: "var(--fg-secondary)" }}>
+            Create your first bot — paste a URL and get an embeddable chat widget in minutes.
+          </p>
+          <Link href="/dashboard/bots/new" className="btn btn-primary">
+            <Plus className="w-4 h-4" /> Create bot
+          </Link>
+        </div>
       ) : (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="space-y-1">
           {(bots as Bot[]).map((b) => (
             <Link
               key={b.id}
               href={`/dashboard/bots/${b.id}`}
-              className="card p-5 hover:border-[var(--color-brand)] transition-colors"
+              className="flex items-center gap-3 px-4 py-3 rounded-lg group transition-colors hover:bg-[var(--card-hover)]"
+              style={{ color: "var(--fg)" }}
             >
               <div
-                className="w-9 h-9 rounded-lg flex items-center justify-center mb-3"
-                style={{ background: `${b.primary_color}22`, color: b.primary_color }}
+                className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-xs font-medium"
+                style={{ background: `${b.primary_color}18`, color: b.primary_color }}
               >
-                <BotIcon className="w-4 h-4" />
+                {b.name.charAt(0).toUpperCase()}
               </div>
-              <h3 className="font-semibold mb-1">{b.name}</h3>
-              <p className="text-xs text-[var(--color-muted)]">
-                Created {new Date(b.created_at).toLocaleDateString()}
-              </p>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate">{b.name}</p>
+                <p className="text-xs" style={{ color: "var(--fg-muted)" }}>
+                  {new Date(b.created_at).toLocaleDateString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  })}
+                </p>
+              </div>
+              <ChevronRight
+                className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                style={{ color: "var(--fg-muted)" }}
+              />
             </Link>
           ))}
         </div>
       )}
-    </div>
-  );
-}
-
-function EmptyState() {
-  return (
-    <div className="card p-12 text-center">
-      <BotIcon className="w-12 h-12 mx-auto mb-4 text-[var(--color-muted)]" />
-      <h3 className="font-semibold mb-2">No bots yet</h3>
-      <p className="text-sm text-[var(--color-muted)] mb-6 max-w-sm mx-auto">
-        Create your first bot by giving it a name and pointing it at any URL. We&apos;ll
-        crawl the page, index it, and give you an embed snippet within a minute.
-      </p>
-      <Link href="/dashboard/bots/new" className="btn btn-primary">
-        <Plus className="w-4 h-4" />
-        Create your first bot
-      </Link>
     </div>
   );
 }

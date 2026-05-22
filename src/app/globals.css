@@ -1,46 +1,120 @@
 @import "tailwindcss";
 
-@theme {
-  --color-bg: #0a0a0a;
-  --color-fg: #fafafa;
-  --color-muted: #71717a;
-  --color-card: #111111;
-  --color-border: #27272a;
-  --color-brand: #0ea5e9;
-  --color-brand-2: #6366f1;
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, sans-serif;
+/* Cursor-inspired — neutral only, no blue accent */
+:root {
+  --bg: #fafafa;
+  --bg-elevated: #ffffff;
+  --bg-subtle: #f4f4f5;
+  --fg: #171717;
+  --fg-secondary: #525252;
+  --fg-muted: #737373;
+  --border: rgba(0, 0, 0, 0.08);
+  --border-strong: rgba(0, 0, 0, 0.14);
+  --card: #ffffff;
+  --card-hover: #f4f4f5;
+  --btn-primary-bg: #171717;
+  --btn-primary-fg: #fafafa;
+  --btn-primary-hover: #262626;
+  --btn-secondary-bg: transparent;
+  --btn-secondary-fg: #171717;
+  --btn-secondary-border: rgba(0, 0, 0, 0.12);
+  --glow: rgba(0, 0, 0, 0.04);
+  --code: #525252;
+  --demo-bg: #1a1a1a;
+  --demo-surface: #262626;
+  --demo-border: rgba(255, 255, 255, 0.08);
+  --demo-fg: #ededed;
+  --demo-muted: #737373;
+  --demo-code: #a3a3a3;
+  --shadow-demo: 0 0 0 1px rgba(0, 0, 0, 0.06), 0 24px 80px rgba(0, 0, 0, 0.12);
+}
+
+.dark {
+  --bg: #060606;
+  --bg-elevated: #0a0a0a;
+  --bg-subtle: #111111;
+  --fg: #ededed;
+  --fg-secondary: #a3a3a3;
+  --fg-muted: #737373;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.14);
+  --card: #0f0f0f;
+  --card-hover: #141414;
+  --btn-primary-bg: #ededed;
+  --btn-primary-fg: #171717;
+  --btn-primary-hover: #ffffff;
+  --btn-secondary-bg: transparent;
+  --btn-secondary-fg: #ededed;
+  --btn-secondary-border: rgba(255, 255, 255, 0.14);
+  --glow: rgba(255, 255, 255, 0.04);
+  --code: #a3a3a3;
+  --demo-bg: #0a0a0a;
+  --demo-surface: #141414;
+  --demo-border: rgba(255, 255, 255, 0.08);
+  --demo-fg: #ededed;
+  --demo-muted: #737373;
+  --demo-code: #d4d4d4;
+  --shadow-demo: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 32px 100px rgba(0, 0, 0, 0.6);
 }
 
 * {
   box-sizing: border-box;
 }
 
-html,
+html {
+  scroll-behavior: smooth;
+  color-scheme: light dark;
+}
+
 body {
-  background: var(--color-bg);
-  color: var(--color-fg);
-  font-family: var(--font-sans);
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 ::selection {
-  background: color-mix(in oklab, var(--color-brand) 30%, transparent);
+  background: var(--glow);
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(4px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
-.animate-fade-in {
-  animation: fadeIn 200ms ease-out;
+.anim-fade-up {
+  animation: fadeUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
-
-/* Tiny utility classes used by the dashboard. */
-.card {
-  background: var(--color-card);
-  border: 1px solid var(--color-border);
-  border-radius: 12px;
+.anim-fade-in {
+  animation: fadeIn 0.5s ease both;
+}
+.delay-1 {
+  animation-delay: 100ms;
+}
+.delay-2 {
+  animation-delay: 200ms;
+}
+.delay-3 {
+  animation-delay: 300ms;
+}
+.delay-4 {
+  animation-delay: 400ms;
 }
 
 .btn {
@@ -48,40 +122,132 @@ body {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  height: 2.5rem;
+  height: 2.25rem;
   padding: 0 1rem;
-  border-radius: 8px;
-  font-size: 0.875rem;
+  border-radius: 9999px;
+  font-size: 0.8125rem;
   font-weight: 500;
-  transition: all 150ms;
   cursor: pointer;
   white-space: nowrap;
+  outline: none;
+  border: none;
+  transition: all 0.2s ease;
+  text-decoration: none;
 }
 
 .btn-primary {
-  background: var(--color-brand);
-  color: white;
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-fg);
 }
-.btn-primary:hover { background: color-mix(in oklab, var(--color-brand) 88%, white); }
-.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-primary:hover {
+  background: var(--btn-primary-hover);
+}
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 
 .btn-secondary {
-  background: transparent;
-  color: var(--color-fg);
-  border: 1px solid var(--color-border);
+  background: var(--btn-secondary-bg);
+  color: var(--btn-secondary-fg);
+  border: 1px solid var(--btn-secondary-border);
 }
-.btn-secondary:hover { background: var(--color-card); }
+.btn-secondary:hover {
+  background: var(--glow);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--fg-secondary);
+  height: 2rem;
+  padding: 0 0.75rem;
+}
+.btn-ghost:hover {
+  color: var(--fg);
+  background: var(--glow);
+}
+
+.btn-lg {
+  height: 2.75rem;
+  padding: 0 1.25rem;
+  font-size: 0.875rem;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
 
 .input {
   width: 100%;
   height: 2.5rem;
   padding: 0 0.875rem;
   border-radius: 8px;
-  background: var(--color-card);
-  border: 1px solid var(--color-border);
-  color: var(--color-fg);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  color: var(--fg);
   font-size: 0.875rem;
   outline: none;
-  transition: border-color 150ms;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
-.input:focus { border-color: var(--color-brand); }
+.input:focus {
+  border-color: var(--fg-muted);
+  box-shadow: 0 0 0 3px var(--glow);
+}
+.input::placeholder {
+  color: var(--fg-muted);
+}
+
+.section-title {
+  font-size: clamp(1.75rem, 4vw, 2.25rem);
+  font-weight: 500;
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+  color: var(--fg);
+}
+
+.section-desc {
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  color: var(--fg-secondary);
+}
+
+.link-arrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.875rem;
+  color: var(--fg-secondary);
+  transition: color 0.15s;
+}
+.link-arrow:hover {
+  color: var(--fg);
+}
+
+.hero-glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 80% 50% at 50% -20%,
+    var(--glow),
+    transparent
+  );
+}
+
+.demo-frame {
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: var(--shadow-demo);
+  border: 1px solid var(--border);
+}
+
+.divider {
+  height: 1px;
+  background: var(--border);
+}
+
+.font-mono {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+}

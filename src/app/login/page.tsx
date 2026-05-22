@@ -1,13 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Bot, Mail, Loader2, CheckCircle2 } from "lucide-react";
+import { Loader2, CheckCircle2, ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { getAppUrl } from "@/lib/utils";
+import { SiteFooter } from "@/components/site-footer";
 
-export default function LoginPage() {
+function LoginForm() {
   const params = useSearchParams();
   const next = params.get("next") ?? "/dashboard";
 
@@ -37,59 +38,73 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center px-6">
-      <div className="w-full max-w-sm">
-        <Link href="/" className="flex items-center justify-center gap-2 mb-8 font-semibold">
-          <Bot className="w-5 h-5 text-[var(--color-brand)]" />
+    <div className="min-h-screen flex flex-col" style={{ background: "var(--bg)" }}>
+      <header className="px-5 h-14 flex items-center">
+        <Link href="/" className="text-sm font-medium" style={{ color: "var(--fg)" }}>
           Helply
         </Link>
+      </header>
 
-        <div className="card p-8">
-          <h1 className="text-xl font-semibold mb-1 text-center">Sign in to Helply</h1>
-          <p className="text-sm text-[var(--color-muted)] text-center mb-6">
-            We&apos;ll email you a magic link. No password needed.
+      <div className="flex-1 flex items-center justify-center px-5 pb-12">
+        <div className="w-full max-w-sm anim-fade-up">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1.5 text-xs mb-8 transition-colors"
+            style={{ color: "var(--fg-muted)" }}
+          >
+            <ArrowLeft className="w-3.5 h-3.5" /> Back
+          </Link>
+
+          <h1 className="text-2xl font-medium tracking-tight mb-2" style={{ color: "var(--fg)" }}>
+            Sign in to Helply
+          </h1>
+          <p className="text-sm mb-8" style={{ color: "var(--fg-secondary)" }}>
+            We&apos;ll send you a magic link. No password needed.
           </p>
 
           {status === "sent" ? (
-            <div className="text-center py-4 animate-fade-in">
-              <CheckCircle2 className="w-10 h-10 text-emerald-400 mx-auto mb-3" />
-              <p className="font-medium mb-1">Check your inbox</p>
-              <p className="text-sm text-[var(--color-muted)]">
-                We sent a magic link to <strong className="text-[var(--color-fg)]">{email}</strong>.
+            <div className="card p-8 text-center anim-fade-in">
+              <CheckCircle2 className="w-8 h-8 mx-auto mb-4" style={{ color: "var(--fg-secondary)" }} />
+              <p className="font-medium mb-1" style={{ color: "var(--fg)" }}>Check your inbox</p>
+              <p className="text-sm" style={{ color: "var(--fg-secondary)" }}>
+                Sent to <strong style={{ color: "var(--fg)" }}>{email}</strong>
               </p>
             </div>
           ) : (
-            <form onSubmit={sendLink} className="space-y-3">
-              <input
-                type="email"
-                required
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="input"
-                autoFocus
-              />
-              <button
-                type="submit"
-                disabled={status === "sending" || !email}
-                className="btn btn-primary w-full"
-              >
-                {status === "sending" ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Mail className="w-4 h-4" />
-                )}
-                Send magic link
+            <form onSubmit={sendLink} className="space-y-4">
+              <div>
+                <label className="text-xs font-medium mb-1.5 block" style={{ color: "var(--fg-secondary)" }}>
+                  Email
+                </label>
+                <input
+                  type="email"
+                  required
+                  placeholder="you@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="input"
+                  autoFocus
+                />
+              </div>
+              <button type="submit" disabled={status === "sending" || !email} className="btn btn-primary w-full btn-lg">
+                {status === "sending" && <Loader2 className="w-4 h-4 animate-spin" />}
+                Continue
               </button>
-              {error && <p className="text-sm text-red-400 text-center">{error}</p>}
+              {error && <p className="text-xs text-center" style={{ color: "var(--fg-muted)" }}>{error}</p>}
             </form>
           )}
         </div>
-
-        <p className="text-xs text-[var(--color-muted)] text-center mt-6">
-          By signing in you agree to be a beta tester. No credit card required.
-        </p>
       </div>
-    </main>
+
+      <SiteFooter />
+    </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   );
 }
