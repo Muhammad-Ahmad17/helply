@@ -7,7 +7,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 OCI_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 REPO_ROOT="$(cd "$OCI_DIR/.." && pwd)"
 
-log()  { echo "[helply-oci] $*"; }
+log()  { echo "[helply-oci] $*" >&2; }
 warn() { echo "[helply-oci] WARN: $*" >&2; }
 die()  { echo "[helply-oci] ERROR: $*" >&2; exit 1; }
 
