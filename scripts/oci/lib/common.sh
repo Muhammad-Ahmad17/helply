@@ -89,8 +89,15 @@ wait_for_instance_running() {
   local instance_ocid="$1"
   local name="$2"
   log "Waiting for $name to reach RUNNING..."
-  oci compute instance get --instance-id "$instance_ocid" --wait-for-state RUNNING \
-    --max-wait-seconds 600 >/dev/null
+  local state
+  state="$(oci compute instance get --instance-id "$instance_ocid" \
+    --query 'data."lifecycle-state"' --raw-output 2>/dev/null || echo "UNKNOWN")"
+  if [[ "$state" == "RUNNING" ]]; then
+    log "$name is already RUNNING"
+    return 0
+  fi
+  oci compute instance get --instance-id "$instance_ocid" \
+    --wait-for-state RUNNING --max-wait-seconds 600 >/dev/null 2>&1 || true
 }
 
 get_instance_ips() {
