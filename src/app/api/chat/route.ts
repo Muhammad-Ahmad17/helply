@@ -13,8 +13,8 @@ import {
 } from "@/lib/security";
 import { log, logError } from "@/lib/log";
 
-// Hobby plan caps at 10s — Pro allows 60s+
-export const maxDuration = 10;
+// Self-hosted: no Vercel cap. Vercel Hobby still caps at 10s regardless.
+export const maxDuration = 60;
 
 const GROQ_MODEL =
   process.env.GROQ_MODEL ?? "llama-3.1-8b-instant";

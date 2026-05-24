@@ -1,23 +1,38 @@
 import { Ratelimit } from "@upstash/ratelimit";
-import { Redis } from "@upstash/redis";
+import { Redis as UpstashRedis } from "@upstash/redis";
+import IORedis from "ioredis";
 
-function createRedis() {
+type RedisBackend = UpstashRedis | IORedis;
+
+function createRedisBackend(): RedisBackend | null {
+  const redisUrl = process.env.REDIS_URL;
+  if (redisUrl) {
+    return new IORedis(redisUrl, {
+      maxRetriesPerRequest: 3,
+      lazyConnect: true,
+    });
+  }
+
   const url = process.env.UPSTASH_REDIS_REST_URL;
   const token = process.env.UPSTASH_REDIS_REST_TOKEN;
-  if (!url || !token) return null;
-  return new Redis({ url, token });
+  if (url && token) {
+    return new UpstashRedis({ url, token });
+  }
+
+  return null;
 }
 
-const redis = createRedis();
+const redis = createRedisBackend();
 
 function makeLimiter(
   prefix: string,
   limit: number,
   window: `${number} s` | `${number} m` | `${number} h`
-) {
+): Ratelimit | null {
   if (!redis) return null;
   return new Ratelimit({
-    redis,
+    // ioredis implements the commands @upstash/ratelimit needs at runtime
+    redis: redis as unknown as UpstashRedis,
     limiter: Ratelimit.slidingWindow(limit, window),
     prefix: `helply:${prefix}`,
     analytics: true,
@@ -56,7 +71,9 @@ export async function checkRateLimit(
 
   if (!limiter) {
     if (process.env.NODE_ENV === "production") {
-      console.warn("[rate-limit] Upstash not configured — rate limiting disabled");
+      console.warn(
+        "[rate-limit] Redis not configured (set REDIS_URL or Upstash vars) — rate limiting disabled"
+      );
     }
     return noopResult;
   }

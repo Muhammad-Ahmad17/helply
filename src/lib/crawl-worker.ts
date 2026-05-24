@@ -7,8 +7,8 @@ import type { CrawlJob } from "@/lib/types";
 
 export const MAX_CRAWL_ATTEMPTS = 2;
 
-/** Cap chunks per page so crawls finish within Vercel Hobby's ~10s limit. */
-export const MAX_CHUNKS_PER_CRAWL = 15;
+/** Cap chunks per page (raised for self-hosted; was 15 on Vercel Hobby). */
+export const MAX_CHUNKS_PER_CRAWL = 200;
 
 export interface CrawlJobInput {
   id: string;

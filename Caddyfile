@@ -1,0 +1,6 @@
+# Replace DOMAIN in .env (e.g. helply.yourdomain.com)
+# Caddy auto-provisions HTTPS via Let's Encrypt — no manual certs.
+{$DOMAIN} {
+	encode gzip zstd
+	reverse_proxy web:3000
+}

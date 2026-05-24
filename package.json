@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
+    "worker": "tsx scripts/worker.ts",
     "abuse-test": "tsx scripts/abuse-test.ts"
   },
   "dependencies": {
@@ -21,6 +22,7 @@
     "cheerio": "^1.2.0",
     "clsx": "^2.1.1",
     "geist": "^1.7.1",
+    "ioredis": "^5.10.1",
     "lucide-react": "^1.16.0",
     "next": "^16.2.6",
     "p-limit": "^7.3.0",

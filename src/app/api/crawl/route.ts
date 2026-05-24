@@ -22,8 +22,8 @@ const bodySchema = z.object({
   crawlSite: z.boolean().optional(),
 });
 
-/** Max pages to crawl inline on Vercel Hobby (10s timeout). */
-const SITE_CRAWL_INLINE_LIMIT = 2;
+/** Max pages to crawl inline (raised for self-hosted; was 2 on Vercel Hobby). */
+const SITE_CRAWL_INLINE_LIMIT = 50;
 
 export async function POST(req: Request) {
   try {
@@ -118,7 +118,7 @@ export async function POST(req: Request) {
         discovered: discovered.length,
         message:
           discovered.length > batch.length
-            ? `Crawled ${processed} pages now. ${discovered.length - batch.length} more found — crawl them individually (Hobby plan limit).`
+            ? `Crawled ${processed} pages now. ${discovered.length - batch.length} more queued for the background worker.`
             : `Crawled ${processed} pages.`,
         errors: errors.length > 0 ? errors : undefined,
       });
