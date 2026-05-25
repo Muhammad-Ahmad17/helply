@@ -1,0 +1,24 @@
+{
+  "name": "@ragify/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./crawler": "./src/crawler.ts",
+    "./crawl-worker": "./src/crawl-worker.ts",
+    "./log": "./src/log.ts",
+    "./types": "./src/types.ts",
+    "./ai/chunk": "./src/ai/chunk.ts",
+    "./ai/embeddings": "./src/ai/embeddings.ts",
+    "./supabase/service": "./src/supabase/service.ts"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.106.1",
+    "cheerio": "^1.2.0",
+    "p-limit": "^7.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.7.4",
+    "typescript": "^6.0.3"
+  }
+}

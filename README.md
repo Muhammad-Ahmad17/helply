@@ -1,19 +1,21 @@
-# Helply
+# Ragify
 
 > Paste a URL → get an AI chatbot trained on that content → embed it anywhere with one line of code.
 
-A zero-budget Micro-SaaS + productized-service template. Next.js 16 + Supabase (Postgres + pgvector) + Vercel AI SDK + Groq + Jina AI embeddings. Everything runs on free tiers.
+Monorepo: **apps/app** (Next.js + Caddy) · **apps/worker** (crawl + Redis) · **packages/core** (shared)
 
 ---
 
-## What you're getting
+## Repo layout
 
-- **Landing page** (`/`) — marketing site with hero, how-it-works, pricing
-- **Magic-link auth** (`/login`) — email-only signin via Supabase
-- **Dashboard** (`/dashboard`) — create/manage bots, add sources, copy embed code, customize colors + system prompt
-- **Public chat endpoint** (`/api/chat`) — streaming RAG over your content, served from Groq Llama 3.3 70B
-- **Crawler endpoint** (`/api/crawl`) — fetches a URL, chunks it, embeds it, stores in pgvector
-- **Embed widget** (`/api/widget.js` + `/embed/[botId]`) — one-line `<script>` that any site can drop in
+```
+ragify/
+├── apps/app/          ← VM1: ragify.tech (Next.js + Caddy)
+├── apps/worker/       ← VM2: Redis + crawl worker
+├── packages/core/     ← shared crawler, embeddings, Supabase service
+├── infra/             ← OCI scripts, bootstrap, Makefile
+└── supabase/          ← DB migrations
+```
 
 ---
 
@@ -34,31 +36,24 @@ A zero-budget Micro-SaaS + productized-service template. Next.js 16 + Supabase (
 3. Paste the contents of [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql) and click **Run**.
 4. Open **Project Settings → API** and copy the three values you need into `.env.local` (see step 4 below).
 
-### 3. Install
+### 3. Install & configure
 
 ```bash
 npm install
+cp apps/app/.env.example apps/app/.env.local
 ```
 
-### 4. Configure environment
+Fill in `apps/app/.env.local`:
+
+- `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
+- `GROQ_API_KEY`, `JINA_API_KEY`
+- `NEXT_PUBLIC_APP_URL` — `http://localhost:3000` for dev
+
+### 4. Run
 
 ```bash
-cp .env.example .env.local
-```
-
-Open `.env.local` and fill in:
-
-- `NEXT_PUBLIC_SUPABASE_URL` — from Supabase **Project Settings → API**
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY` — same page, "anon public" key
-- `SUPABASE_SERVICE_ROLE_KEY` — same page, "service_role" key (KEEP SECRET — bypasses RLS)
-- `GROQ_API_KEY` — from https://console.groq.com/keys
-- `JINA_API_KEY` — from https://jina.ai/?sui=apikey
-- `NEXT_PUBLIC_APP_URL` — leave as `http://localhost:3000` for dev
-
-### 5. Run
-
-```bash
-npm run dev
+npm run dev          # http://localhost:3000
+npm run worker       # crawl worker (optional)
 ```
 
 Open http://localhost:3000.

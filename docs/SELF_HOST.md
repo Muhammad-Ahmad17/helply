@@ -53,12 +53,12 @@ On your **local machine**:
 
 ## 2. Oracle Cloud setup
 
-**Terminal provisioning (recommended):** use the OCI CLI scripts in [`scripts/oci/README.md`](../scripts/oci/README.md):
+**Terminal provisioning (recommended):** use the OCI CLI scripts in [`infra/oci/README.md`](../infra/oci/README.md):
 
 ```bash
-cp scripts/oci/env.example scripts/oci/env.local   # fill compartment + region
-bash scripts/oci/provision-all.sh                  # VCN + policies + both VMs
-bash scripts/oci/verify-instances.sh               # SSH requirement check
+cp infra/oci/env.example infra/oci/env.local   # fill compartment + region
+bash infra/oci/provision-all.sh                  # VCN + policies + both VMs
+bash infra/oci/verify-instances.sh               # SSH requirement check
 ```
 
 Or follow the manual Console steps below.
@@ -152,18 +152,18 @@ The bootstrap script installs Docker, swap, UFW, fail2ban, and hardens SSH.
 
 ```bash
 ssh helply-app
-git clone https://github.com/YOUR_USER/helply.git ~/helply
-cd ~/helply
-sudo bash scripts/bootstrap-vm.sh app
+git clone https://github.com/Muhammad-Ahmad17/helply.git ~/ragify
+cd ~/ragify
+sudo bash infra/bootstrap-vm.sh app
 ```
 
 **VM2 (worker):**
 
 ```bash
 ssh helply-worker
-git clone https://github.com/YOUR_USER/helply.git ~/helply
-cd ~/helply
-sudo bash scripts/bootstrap-vm.sh worker
+git clone https://github.com/YOUR_USER/helply.git ~/ragify
+cd ~/ragify
+sudo bash infra/bootstrap-vm.sh worker
 ```
 
 Log out and back in so the `docker` group applies:
@@ -195,26 +195,17 @@ SSH to VM2:
 
 ```bash
 ssh helply-worker
-cd ~/helply
+cd ~/ragify/apps/worker
+cp .env.example .env
 nano .env
 ```
 
-**VM2 `.env`** (minimum):
+**VM2 `.env`** — see `apps/worker/.env.example`. Minimum:
 
 ```env
-# Supabase
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
 SUPABASE_SERVICE_ROLE_KEY=eyJ...
-
-# Jina (embeddings for crawl worker)
 JINA_API_KEY=jina_...
-
-# Redis bind — use VM2 private IP so VM1 can connect
-# Example: REDIS_BIND=10.0.0.13
 REDIS_BIND=10.0.0.13
-
-# Worker tuning (optional)
 WORKER_POLL_MS=60000
 WORKER_BATCH_SIZE=5
 ```
@@ -222,9 +213,9 @@ WORKER_BATCH_SIZE=5
 Start services:
 
 ```bash
-docker compose -f docker-compose.worker.yml up -d --build
-docker compose -f docker-compose.worker.yml ps
-docker compose -f docker-compose.worker.yml logs -f worker
+docker compose up -d --build
+docker compose ps
+docker compose logs -f worker
 ```
 
 Verify Redis from VM1 (after VM1 is bootstrapped):
@@ -245,7 +236,8 @@ SSH to VM1:
 
 ```bash
 ssh helply-app
-cd ~/helply
+cd ~/ragify/apps/app
+cp .env.example .env
 nano .env
 ```
 
@@ -265,8 +257,8 @@ GROQ_MODEL=llama-3.3-70b-versatile
 JINA_API_KEY=jina_...
 
 # --- App URL (your domain — set before first HTTPS request) ---
-NEXT_PUBLIC_APP_URL=https://helply.yourdomain.com
-DOMAIN=helply.yourdomain.com
+NEXT_PUBLIC_APP_URL=https://ragify.tech
+DOMAIN=ragify.tech
 
 # --- Redis on VM2 (private IP) ---
 REDIS_URL=redis://10.0.0.13:6379
@@ -280,7 +272,7 @@ CRON_SECRET=<openssl rand -hex 32>
 # LEMON_WEBHOOK_SECRET=
 # NEXT_PUBLIC_SENTRY_DSN=
 # RESEND_API_KEY=
-# RESEND_FROM_EMAIL=Helply <notifications@yourdomain.com>
+# RESEND_FROM_EMAIL=Ragify <notifications@yourdomain.com>
 ```
 
 Build and start:
@@ -361,24 +353,24 @@ Browser checks:
 
 ```bash
 # VM1
-ssh helply-app 'cd ~/helply && docker compose logs -f --tail=100'
+ssh helply-app 'cd ~/ragify/apps/app && docker compose logs -f --tail=100'
 
 # VM2 worker
-ssh helply-worker 'cd ~/helply && docker compose -f docker-compose.worker.yml logs -f worker'
+ssh helply-worker 'cd ~/ragify/apps/worker && docker compose logs -f worker'
 ```
 
 ### Restart
 
 ```bash
-ssh helply-app 'cd ~/helply && docker compose restart'
-ssh helply-worker 'cd ~/helply && docker compose -f docker-compose.worker.yml restart'
+ssh helply-app 'cd ~/ragify/apps/app && docker compose restart'
+ssh helply-worker 'cd ~/ragify/apps/worker && docker compose restart'
 ```
 
 ### Roll back
 
 ```bash
-ssh helply-app 'cd ~/helply && git log --oneline -5'
-ssh helply-app 'cd ~/helply && git checkout <previous-commit> && docker compose up -d --build'
+ssh helply-app 'cd ~/ragify && git log --oneline -5'
+ssh helply-app 'cd ~/ragify && git checkout <previous-commit> && docker compose up -d --build'
 ```
 
 ### Backups
@@ -413,8 +405,8 @@ make deploy
 Or manually:
 
 ```bash
-ssh helply-app  'cd ~/helply && git pull && docker compose up -d --build'
-ssh helply-worker 'cd ~/helply && git pull && docker compose -f docker-compose.worker.yml up -d --build'
+ssh helply-app  'cd ~/ragify && git pull && cd apps/app && docker compose up -d --build'
+ssh helply-worker 'cd ~/ragify && git pull && cd apps/worker && docker compose up -d --build'
 ```
 
 **When to add CI/CD:** after ~10 deploys/week or when you have paying users. A GitHub Action with `appleboy/ssh-action` (~20 lines) can replace `make deploy` later.
@@ -470,14 +462,15 @@ redis-cli -h <VM2_PRIVATE_IP> ping
 
 | File | Purpose |
 |------|---------|
-| `Dockerfile` | Next.js standalone app image |
-| `Dockerfile.worker` | Crawl worker image |
-| `docker-compose.yml` | VM1: web + caddy |
-| `docker-compose.worker.yml` | VM2: redis + worker |
-| `Caddyfile` | Auto HTTPS reverse proxy |
-| `scripts/bootstrap-vm.sh` | One-time VM hardening |
-| `scripts/worker.ts` | Background crawl job poller |
-| `Makefile` | `make deploy` from laptop |
+| `apps/app/Dockerfile` | Next.js standalone app image |
+| `apps/worker/Dockerfile` | Crawl worker image |
+| `apps/app/docker-compose.yml` | VM1: web + caddy |
+| `apps/worker/docker-compose.yml` | VM2: redis + worker |
+| `apps/app/Caddyfile` | Auto HTTPS reverse proxy |
+| `infra/bootstrap-vm.sh` | One-time VM hardening |
+| `apps/worker/src/index.ts` | Background crawl job poller |
+| `infra/Makefile` | `make -C infra deploy` from laptop |
+| `packages/core/` | Shared crawler, embeddings, Supabase |
 
 ---
 

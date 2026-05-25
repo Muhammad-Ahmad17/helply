@@ -1,46 +1,17 @@
 {
-  "name": "helply",
+  "name": "ragify",
   "version": "0.1.0",
   "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
-    "dev": "next dev --turbopack",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint",
-    "typecheck": "tsc --noEmit",
-    "worker": "tsx scripts/worker.ts",
-    "abuse-test": "tsx scripts/abuse-test.ts"
-  },
-  "dependencies": {
-    "@ai-sdk/groq": "^3.0.39",
-    "@sentry/nextjs": "^10.53.1",
-    "@supabase/ssr": "^0.10.3",
-    "@supabase/supabase-js": "^2.106.1",
-    "@upstash/ratelimit": "^2.0.8",
-    "@upstash/redis": "^1.38.0",
-    "ai": "^6.0.190",
-    "cheerio": "^1.2.0",
-    "clsx": "^2.1.1",
-    "geist": "^1.7.1",
-    "ioredis": "^5.10.1",
-    "lucide-react": "^1.16.0",
-    "next": "^16.2.6",
-    "p-limit": "^7.3.0",
-    "react": "^19.2.6",
-    "react-dom": "^19.2.6",
-    "tailwind-merge": "^3.0.2",
-    "zod": "^4.4.3"
-  },
-  "devDependencies": {
-    "@tailwindcss/postcss": "^4.3.0",
-    "@types/node": "^22.7.4",
-    "@types/react": "^19.2.0",
-    "@types/react-dom": "^19.2.0",
-    "eslint": "^9.12.0",
-    "eslint-config-next": "^16.2.6",
-    "postcss": "^8.4.47",
-    "tailwindcss": "^4.3.0",
-    "tsx": "^4.22.3",
-    "typescript": "^6.0.3"
+    "dev": "npm run dev -w @ragify/app",
+    "build": "npm run build -w @ragify/app",
+    "start": "npm run start -w @ragify/app",
+    "lint": "npm run lint -w @ragify/app",
+    "typecheck": "npm run typecheck -w @ragify/app && npm run typecheck -w @ragify/worker",
+    "worker": "npm run start -w @ragify/worker"
   }
 }
