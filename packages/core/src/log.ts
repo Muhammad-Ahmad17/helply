@@ -1,5 +1,3 @@
-import * as Sentry from "@sentry/nextjs";
-
 type LogLevel = "debug" | "info" | "warn" | "error";
 
 interface LogFields {
@@ -32,6 +30,20 @@ export function log(fields: LogFields) {
   }
 }
 
+/** Optional Sentry — only when @sentry/nextjs is installed (app, not worker). */
+function captureSentry(err: unknown, extra: Record<string, unknown>) {
+  if (!process.env.NEXT_PUBLIC_SENTRY_DSN) return;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const Sentry = require("@sentry/nextjs") as typeof import("@sentry/nextjs");
+    Sentry.captureException(err instanceof Error ? err : new Error(String(err)), {
+      extra,
+    });
+  } catch {
+    // Worker image has no Sentry — console log only
+  }
+}
+
 export function logError(msg: string, err: unknown, extra?: Record<string, unknown>) {
   log({
     level: "error",
@@ -40,9 +52,5 @@ export function logError(msg: string, err: unknown, extra?: Record<string, unkno
     ...extra,
   });
 
-  if (process.env.NEXT_PUBLIC_SENTRY_DSN) {
-    Sentry.captureException(err instanceof Error ? err : new Error(String(err)), {
-      extra: { msg, ...extra },
-    });
-  }
+  captureSentry(err, { msg, ...extra });
 }
