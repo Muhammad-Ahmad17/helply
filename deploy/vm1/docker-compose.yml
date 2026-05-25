@@ -10,6 +10,8 @@ services:
         VITE_SUPABASE_URL: ${VITE_SUPABASE_URL}
         VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY}
         VITE_APP_URL: ${VITE_APP_URL}
+        VITE_LEMON_STARTER_URL: ${VITE_LEMON_STARTER_URL:-}
+        VITE_LEMON_PRO_URL: ${VITE_LEMON_PRO_URL:-}
     volumes:
       - web_dist:/out
     restart: unless-stopped

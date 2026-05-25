@@ -24,6 +24,20 @@ function createRedisBackend(): RedisBackend | null {
 
 const redis = createRedisBackend();
 
+if (process.env.NODE_ENV === "production" && redis instanceof Redis) {
+  void redis
+    .connect()
+    .then(() => redis.ping())
+    .then((pong) => {
+      if (pong !== "PONG") {
+        console.error("[rate-limit] Redis ping failed — rate limits may not work");
+      }
+    })
+    .catch(() => {
+      console.error("[rate-limit] Redis unreachable — rate limits disabled until Redis is up");
+    });
+}
+
 function makeLimiter(
   prefix: string,
   limit: number,

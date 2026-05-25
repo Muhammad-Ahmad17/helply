@@ -12,7 +12,29 @@ interface LogFields {
   [key: string]: unknown;
 }
 
+let sentryReady = false;
+
+function initSentry() {
+  if (sentryReady) return;
+  sentryReady = true;
+  const dsn = process.env.SENTRY_DSN;
+  if (!dsn) return;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const Sentry = require("@sentry/node") as {
+      init: (opts: { dsn: string; environment?: string }) => void;
+    };
+    Sentry.init({
+      dsn,
+      environment: process.env.NODE_ENV ?? "production",
+    });
+  } catch {
+    // @sentry/node not installed in this image
+  }
+}
+
 export function log(fields: LogFields) {
+  initSentry();
   const { level = "info", msg, ...rest } = fields;
   const line = JSON.stringify({
     ts: new Date().toISOString(),
@@ -30,12 +52,13 @@ export function log(fields: LogFields) {
   }
 }
 
-/** Optional Sentry — only when @sentry/nextjs is installed (app, not worker). */
 function captureSentry(err: unknown, extra: Record<string, unknown>) {
-  if (!process.env.NEXT_PUBLIC_SENTRY_DSN) return;
+  const dsn = process.env.SENTRY_DSN ?? process.env.NEXT_PUBLIC_SENTRY_DSN;
+  if (!dsn) return;
   try {
+    initSentry();
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const Sentry = require("@sentry/nextjs") as {
+    const Sentry = require("@sentry/node") as {
       captureException: (
         err: Error,
         opts?: { extra?: Record<string, unknown> }
@@ -45,7 +68,7 @@ function captureSentry(err: unknown, extra: Record<string, unknown>) {
       extra,
     });
   } catch {
-    // Worker image has no Sentry — console log only
+    // Sentry optional
   }
 }
 

@@ -16,6 +16,8 @@ export default defineConfig({
       "/api/chat": { target: "http://localhost:3001", changeOrigin: true },
       "/api/crawl": { target: "http://localhost:3002", changeOrigin: true },
       "/api/bots": { target: "http://localhost:3001", changeOrigin: true },
+      "/api/auth": { target: "http://localhost:3001", changeOrigin: true },
+      "/api/admin": { target: "http://localhost:3001", changeOrigin: true },
     },
   },
 });

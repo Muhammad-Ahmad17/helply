@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import {
   Check,
   Copy,
@@ -14,10 +14,10 @@ import {
   Globe,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import type { Bot, Source } from "@ragify/core/types";
+import type { Bot, Source, CrawlJob } from "@ragify/core/types";
 import { PLAN_LIMITS } from "@ragify/core/types";
 import { deleteBot, updateBot, crawlRequest } from "@/lib/bots";
-import { getAccessToken } from "@/lib/supabase";
+import { getAccessToken, supabase } from "@/lib/supabase";
 
 export function BotDetail({
   bot,
@@ -28,12 +28,13 @@ export function BotDetail({
   sources: Source[];
   chunkCount: number;
 }) {
-  const [tab, setTab] = useState<"embed" | "sources" | "usage" | "settings">("embed");
+  const [tab, setTab] = useState<"embed" | "sources" | "usage" | "chats" | "settings">("embed");
 
   const tabs = [
     { id: "embed" as const, label: "Embed" },
     { id: "sources" as const, label: "Sources" },
     { id: "usage" as const, label: "Usage" },
+    { id: "chats" as const, label: "Chats" },
     { id: "settings" as const, label: "Settings" },
   ];
 
@@ -76,6 +77,7 @@ export function BotDetail({
         {tab === "embed" && <EmbedTab bot={bot} chunkCount={chunkCount} />}
         {tab === "sources" && <SourcesTab bot={bot} sources={sources} />}
         {tab === "usage" && <UsageTab bot={bot} />}
+        {tab === "chats" && <ChatsTab botId={bot.id} />}
         {tab === "settings" && <SettingsTab bot={bot} />}
       </div>
     </div>
@@ -87,6 +89,28 @@ function UsageTab({ bot }: { bot: Bot }) {
   const limits = PLAN_LIMITS[plan] ?? PLAN_LIMITS.free;
   const used = bot.monthly_message_count ?? 0;
   const pct = Math.min(100, Math.round((used / limits.messages) * 100));
+  const [userId, setUserId] = useState<string | null>(null);
+
+  const starterCheckout = import.meta.env.VITE_LEMON_STARTER_URL as string | undefined;
+  const proCheckout = import.meta.env.VITE_LEMON_PRO_URL as string | undefined;
+
+  useEffect(() => {
+    void supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
+  }, []);
+
+  function checkoutUrl(base: string | undefined) {
+    if (!base || !userId) return null;
+    try {
+      const u = new URL(base);
+      u.searchParams.set("checkout[custom][user_id]", userId);
+      return u.toString();
+    } catch {
+      return base;
+    }
+  }
+
+  const starterLink = checkoutUrl(starterCheckout);
+  const proLink = checkoutUrl(proCheckout);
 
   return (
     <div className="space-y-4 max-w-lg">
@@ -136,6 +160,100 @@ function UsageTab({ bot }: { bot: Bot }) {
           </li>
         </ul>
       </div>
+
+      {plan === "free" && (starterLink || proLink) && (
+        <div className="card p-5 space-y-3">
+          <p className="text-sm font-medium" style={{ color: "var(--fg)" }}>Upgrade</p>
+          <p className="text-xs" style={{ color: "var(--fg-muted)" }}>
+            Checkout via Lemon Squeezy. Your plan syncs automatically after payment.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {starterLink && (
+              <a href={starterLink} target="_blank" rel="noreferrer" className="btn btn-primary text-xs">
+                Starter — $19/mo
+              </a>
+            )}
+            {proLink && (
+              <a href={proLink} target="_blank" rel="noreferrer" className="btn btn-secondary text-xs">
+                Pro — $49/mo
+              </a>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface ConversationRow {
+  id: string;
+  visitor_id: string;
+  created_at: string;
+  messages: Array<{ role: string; content: string; created_at: string }>;
+}
+
+function ChatsTab({ botId }: { botId: string }) {
+  const [rows, setRows] = useState<ConversationRow[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      const { data } = await supabase
+        .from("conversations")
+        .select("id, visitor_id, created_at, messages(role, content, created_at)")
+        .eq("bot_id", botId)
+        .order("created_at", { ascending: false })
+        .limit(50);
+      setRows((data as ConversationRow[]) ?? []);
+      setLoading(false);
+    }
+    void load();
+  }, [botId]);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center py-12">
+        <Loader2 className="w-5 h-5 animate-spin" style={{ color: "var(--fg-muted)" }} />
+      </div>
+    );
+  }
+
+  if (rows.length === 0) {
+    return (
+      <div className="card p-6 text-sm" style={{ color: "var(--fg-muted)" }}>
+        No conversations yet. They appear here when visitors use your embed widget.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3 max-w-2xl">
+      {rows.map((conv) => {
+        const last = conv.messages?.[conv.messages.length - 1];
+        return (
+          <div key={conv.id} className="card p-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-mono truncate" style={{ color: "var(--fg-muted)" }}>
+                {conv.visitor_id.slice(0, 12)}…
+              </p>
+              <p className="text-[10px]" style={{ color: "var(--fg-muted)" }}>
+                {new Date(conv.created_at).toLocaleString()}
+              </p>
+            </div>
+            {last && (
+              <p className="text-sm line-clamp-2" style={{ color: "var(--fg-secondary)" }}>
+                <span className="capitalize font-medium" style={{ color: "var(--fg)" }}>
+                  {last.role}:{" "}
+                </span>
+                {last.content}
+              </p>
+            )}
+            <p className="text-[10px] mt-1" style={{ color: "var(--fg-muted)" }}>
+              {conv.messages?.length ?? 0} messages
+            </p>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -205,6 +323,46 @@ function SourcesTab({ bot, sources }: { bot: Bot; sources: Source[] }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [localSources, setLocalSources] = useState(sources);
+  const [crawlJobs, setCrawlJobs] = useState<CrawlJob[]>([]);
+
+  useEffect(() => {
+    setLocalSources(sources);
+  }, [sources]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function pollJobs() {
+      const { data } = await supabase
+        .from("crawl_jobs")
+        .select("*")
+        .eq("bot_id", bot.id)
+        .in("status", ["pending", "running"])
+        .order("created_at", { ascending: false });
+      if (!cancelled) setCrawlJobs((data as CrawlJob[]) ?? []);
+    }
+
+    void pollJobs();
+    const id = window.setInterval(pollJobs, 5000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [bot.id]);
+
+  useEffect(() => {
+    if (crawlJobs.length === 0) return;
+    const id = window.setInterval(async () => {
+      const { data } = await supabase
+        .from("sources")
+        .select("*")
+        .eq("bot_id", bot.id)
+        .order("created_at");
+      if (data) setLocalSources(data as Source[]);
+    }, 8000);
+    return () => window.clearInterval(id);
+  }, [bot.id, crawlJobs.length]);
 
   function crawl(sourceId?: string, url?: string, crawlSite?: boolean) {
     setError(null);
@@ -265,9 +423,30 @@ function SourcesTab({ bot, sources }: { bot: Bot; sources: Source[] }) {
         {success && <p className="text-xs text-emerald-500 mt-2">{success}</p>}
       </div>
 
-      {sources.length > 0 && (
+      {crawlJobs.length > 0 && (
+        <div className="card p-4">
+          <p className="text-sm font-medium mb-2" style={{ color: "var(--fg)" }}>
+            Background crawl queue
+          </p>
+          <ul className="space-y-2">
+            {crawlJobs.map((j) => (
+              <li key={j.id} className="flex items-center gap-2 text-xs">
+                <Loader2 className="w-3 h-3 animate-spin shrink-0" style={{ color: "#f59e0b" }} />
+                <span className="truncate font-mono" style={{ color: "var(--fg-secondary)" }}>
+                  {j.url}
+                </span>
+                <span className="capitalize shrink-0" style={{ color: "var(--fg-muted)" }}>
+                  {j.status}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {localSources.length > 0 && (
         <div className="card divide-y" style={{ ["--tw-divide-opacity" as string]: 1 }}>
-          {sources.map((s) => (
+          {localSources.map((s) => (
             <div key={s.id} className="flex items-center gap-3 px-4 py-3" style={{ borderColor: "var(--border)" }}>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-0.5">

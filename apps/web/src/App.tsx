@@ -7,6 +7,7 @@ import DashboardPage from "@/pages/dashboard/DashboardPage";
 import NewBotPage from "@/pages/dashboard/NewBotPage";
 import BotDetailPage from "@/pages/dashboard/BotDetailPage";
 import EmbedPage from "@/pages/EmbedPage";
+import AdminPage from "@/pages/AdminPage";
 
 export default function App() {
   return (
@@ -14,6 +15,7 @@ export default function App() {
       <Route path="/" element={<HomePage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/auth/callback" element={<AuthCallbackPage />} />
+      <Route path="/admin" element={<AdminPage />} />
       <Route path="/embed/:botId" element={<EmbedPage />} />
       <Route path="/dashboard" element={<DashboardLayout />}>
         <Route index element={<DashboardPage />} />

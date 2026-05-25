@@ -13,6 +13,7 @@
     "dev:crawl": "npm run dev -w @ragify/crawl-api",
     "build": "npm run build -w @ragify/web",
     "typecheck": "npm run typecheck -ws --if-present",
-    "worker": "npm run start -w @ragify/worker"
+    "worker": "npm run start -w @ragify/worker",
+    "abuse-test": "tsx scripts/abuse-test.ts"
   }
 }

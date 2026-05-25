@@ -2,6 +2,8 @@ import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { getSupabaseUrl } from "@ragify/core/supabase/service";
 import { chatOptions, chatPost, botPublicGet } from "./routes/chat.js";
+import { loginCheckPost } from "./routes/auth.js";
+import { adminStatsGet } from "./routes/admin.js";
 
 function validateEnv() {
   const missing: string[] = [];
@@ -29,6 +31,8 @@ app.get("/health", (c) => c.json({ ok: true, service: "chat-api" }));
 app.options("/api/chat", chatOptions);
 app.post("/api/chat", chatPost);
 app.get("/api/bots/:botId", botPublicGet);
+app.post("/api/auth/login-check", loginCheckPost);
+app.get("/api/admin/stats", adminStatsGet);
 
 const port = Number(process.env.PORT ?? 3001);
 console.log(`[chat-api] Listening on :${port}`);

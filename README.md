@@ -53,26 +53,12 @@ make -C deploy rewash-all  # full rebuild both VMs
 make -C deploy status
 ```
 
-On each VM:
+On each VM (repo cloned at `~/helply` or `~/ragify`):
 
 ```bash
-cd ~/ragify/deploy/vm1 && docker compose up -d --build   # VM1
-cd ~/ragify/deploy/vm2 && docker compose up -d --build   # VM2
+cd ~/helply/deploy/vm1 && docker compose up -d --build   # VM1
+cd ~/helply/deploy/vm2 && docker compose up -d --build   # VM2
 ```
-
----
-
-## Environment variables
-
-| Service | Key vars |
-|---------|----------|
-| **web (build)** | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_APP_URL` |
-| **chat-api** | `GROQ_API_KEY`, `JINA_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `REDIS_URL` |
-| **crawl-api** | `SUPABASE_*`, `JINA_API_KEY`, `SUPABASE_ANON_KEY` (JWT auth) |
-| **worker** | `SUPABASE_*`, `JINA_API_KEY` |
-| **Caddy** | `DOMAIN`, `VM2_PRIVATE_IP` |
-
-Copy from `deploy/vm1/.env.example` and `deploy/vm2/.env.example`.
 
 ---
 
@@ -81,4 +67,7 @@ Copy from `deploy/vm1/.env.example` and `deploy/vm2/.env.example`.
 ```bash
 npm run typecheck    # all workspaces
 npm run build        # Vite SPA production build
+npm run abuse-test   # security smoke tests against BASE_URL
+bash deploy/scripts/verify.sh
+bash deploy/scripts/uptime-check.sh
 ```

@@ -14,10 +14,12 @@
     "./ai/chunk": "./src/ai/chunk.ts",
     "./ai/embeddings": "./src/ai/embeddings.ts",
     "./supabase/service": "./src/supabase/service.ts",
-    "./supabase/node-options": "./src/supabase/node-options.ts"
+    "./supabase/node-options": "./src/supabase/node-options.ts",
+    "./quota-alerts": "./src/quota-alerts.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.106.1",
+    "@sentry/node": "^9.5.0",
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.38.0",
     "cheerio": "^1.2.0",

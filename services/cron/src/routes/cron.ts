@@ -1,7 +1,14 @@
 import type { Context } from "hono";
 import { createServiceClient } from "@ragify/core/supabase/service";
 import { claimAndProcessJobs, verifyCronAuth } from "@ragify/core/crawl-worker";
+import {
+  nextAlertSent,
+  planMessageLimit,
+  quotaThresholds,
+  sendQuotaEmail,
+} from "@ragify/core/quota-alerts";
 import { log, logError } from "@ragify/core/log";
+import Redis from "ioredis";
 
 export async function crawlWorkerGet(c: Context) {
   if (!verifyCronAuth(c.req.raw)) {
@@ -31,6 +38,21 @@ async function checkGroq(): Promise<boolean> {
   return res.ok;
 }
 
+async function checkRedis(): Promise<boolean> {
+  const url = process.env.REDIS_URL;
+  if (!url) return true;
+  const client = new Redis(url, { maxRetriesPerRequest: 1, connectTimeout: 3000, lazyConnect: true });
+  try {
+    await client.connect();
+    const pong = await client.ping();
+    return pong === "PONG";
+  } catch {
+    return false;
+  } finally {
+    client.disconnect();
+  }
+}
+
 async function checkJina(): Promise<boolean> {
   if (!process.env.JINA_API_KEY) return false;
   const res = await fetch("https://api.jina.ai/v1/embeddings", {
@@ -54,14 +76,15 @@ export async function healthCheckGet(c: Context) {
     return c.json({ error: "Unauthorized" }, 401);
   }
 
-  const [supabaseOk, groqOk, jinaOk] = await Promise.all([
+  const [supabaseOk, groqOk, jinaOk, redisOk] = await Promise.all([
     checkSupabase(),
     checkGroq(),
     checkJina(),
+    checkRedis(),
   ]);
 
-  const healthy = supabaseOk && groqOk && jinaOk;
-  const report = { supabase: supabaseOk, groq: groqOk, jina: jinaOk, healthy };
+  const healthy = supabaseOk && groqOk && jinaOk && redisOk;
+  const report = { supabase: supabaseOk, groq: groqOk, jina: jinaOk, redis: redisOk, healthy };
 
   if (!healthy) {
     logError("health_check_failed", new Error("One or more services unhealthy"), report);
@@ -114,4 +137,55 @@ export async function exportConversationsGet(c: Context) {
 
   log({ msg: "conversations_exported", count: conversations?.length ?? 0, filename });
   return c.json({ ok: true, filename, count: conversations?.length ?? 0 });
+}
+
+export async function quotaAlertsGet(c: Context) {
+  if (!verifyCronAuth(c.req.raw)) {
+    return c.json({ error: "Unauthorized" }, 401);
+  }
+
+  const supabase = createServiceClient();
+  const { data: bots, error } = await supabase
+    .from("bots")
+    .select("id, name, owner_id, plan, monthly_message_count, quota_alert_sent");
+
+  if (error) {
+    logError("quota_alerts_load_failed", error);
+    return c.json({ error: error.message }, 500);
+  }
+
+    let sent = 0;
+  for (const bot of bots ?? []) {
+    const plan = (bot.plan ?? "free") as "free" | "starter" | "pro";
+    const limit = planMessageLimit(plan);
+    const used = bot.monthly_message_count ?? 0;
+    let already = bot.quota_alert_sent ?? "";
+    const thresholds = quotaThresholds(used, limit, already);
+    if (thresholds.length === 0) continue;
+
+    const { data: owner } = await supabase.auth.admin.getUserById(bot.owner_id);
+    const email = owner?.user?.email;
+    if (!email) continue;
+
+    for (const threshold of thresholds) {
+      const ok = await sendQuotaEmail({
+        to: email,
+        botName: bot.name,
+        threshold,
+        used,
+        limit,
+      });
+      if (ok) {
+        already = nextAlertSent(already, threshold);
+        await supabase
+          .from("bots")
+          .update({ quota_alert_sent: already })
+          .eq("id", bot.id);
+        sent++;
+        log({ msg: "quota_alert_sent", bot_id: bot.id, threshold, email });
+      }
+    }
+  }
+
+  return c.json({ ok: true, alertsSent: sent });
 }

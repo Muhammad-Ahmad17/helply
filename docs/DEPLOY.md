@@ -31,7 +31,46 @@ Internet → Caddy (VM1)
 | `deploy/scripts/` | rewash + nuclear cleanup scripts |
 | `deploy/Makefile` | Laptop deploy helpers |
 
-Clone on both VMs at **`~/ragify`**.
+Clone on both VMs at **`~/helply`** (or **`~/ragify`** — same repo, either path works).
+
+---
+
+## Database migrations
+
+Apply all files in `supabase/migrations/` **in order** via Supabase Dashboard → SQL Editor:
+
+| File | Purpose |
+|------|---------|
+| `0001_init.sql` | Core schema + pgvector |
+| `0002_security.sql` | allowed_origins, plan columns |
+| `0003_quotas.sql` | consume_message_quota RPC |
+| `0004_crawl_jobs.sql` | Background crawl queue |
+| `0005_webhooks_admin.sql` | Lemon webhooks + is_admin |
+| `0006_quota_alerts.sql` | quota_alert_sent column |
+
+---
+
+## VM2 cron scheduler
+
+After first deploy on VM2:
+
+```bash
+ssh helply-worker
+cd ~/helply/deploy/vm2
+bash setup-cron.sh
+```
+
+This installs crontab entries for health-check, crawl-worker backup, weekly export, and quota alerts.
+
+---
+
+## External uptime monitoring
+
+From your laptop or UptimeRobot:
+
+```bash
+CRON_SECRET=your-secret bash deploy/scripts/uptime-check.sh
+```
 
 ---
 

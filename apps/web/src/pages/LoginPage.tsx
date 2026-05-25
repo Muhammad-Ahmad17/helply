@@ -65,6 +65,19 @@ export default function LoginPage() {
     if (cooldown > 0) return;
     setStatus("sending");
     setError(null);
+
+    const throttle = await fetch("/api/auth/login-check", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+    if (throttle.status === 429) {
+      const body = await throttle.json().catch(() => ({}));
+      setStatus("error");
+      setError(body.error ?? "Too many magic-link requests. Try again later.");
+      return;
+    }
+
     const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`;
     const { error: otpError } = await supabase.auth.signInWithOtp({
       email,
