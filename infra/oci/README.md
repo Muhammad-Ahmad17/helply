@@ -155,8 +155,9 @@ Expected:
 |------|--------|---------|
 | 22/tcp | 0.0.0.0/0 | SSH |
 | 6379/tcp | 10.0.0.0/16 (VCN) | Redis from helply-app only |
+| 3002–3004/tcp | 10.0.0.0/16 (VCN) | crawl-api, webhooks, cron (proxied by Caddy on VM1) |
 
-6379 is **never** opened to the public internet.
+6379 and 3002–3004 are **never** opened to the public internet.
 
 ## Troubleshooting
 

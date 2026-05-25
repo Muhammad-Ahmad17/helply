@@ -101,17 +101,18 @@ create_app_security_list() {
   fi
 }
 
-# --- Security List: helply-worker (SSH + Redis from VCN only) ---
+# --- Security List: helply-worker (SSH + Redis + backend APIs from VCN only) ---
 create_worker_security_list() {
   local ingress='[
     {"protocol":"6","source":"0.0.0.0/0","isStateless":false,"tcpOptions":{"destinationPortRange":{"min":22,"max":22}}},
-    {"protocol":"6","source":"'"$VCN_CIDR"'","isStateless":false,"tcpOptions":{"destinationPortRange":{"min":6379,"max":6379}}}
+    {"protocol":"6","source":"'"$VCN_CIDR"'","isStateless":false,"tcpOptions":{"destinationPortRange":{"min":6379,"max":6379}}},
+    {"protocol":"6","source":"'"$VCN_CIDR"'","isStateless":false,"tcpOptions":{"destinationPortRange":{"min":3002,"max":3004}}}
   ]'
   local egress='[{"protocol":"all","destination":"0.0.0.0/0","isStateless":false}]'
 
   HELPLY_WORKER_SECURITY_LIST_OCID="$(oci_find_by_name security-list "$WORKER_SL_NAME")"
   if [[ -z "$HELPLY_WORKER_SECURITY_LIST_OCID" ]]; then
-    log "Creating Security List: $WORKER_SL_NAME (22, 6379 from $VCN_CIDR)"
+    log "Creating Security List: $WORKER_SL_NAME (22, 6379+3002-3004 from $VCN_CIDR)"
     HELPLY_WORKER_SECURITY_LIST_OCID="$(oci network security-list create \
       --compartment-id "$CID" \
       --vcn-id "$HELPLY_VCN_OCID" \

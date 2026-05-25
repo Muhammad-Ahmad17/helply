@@ -303,14 +303,24 @@ export async function chatPost(c: Context) {
 }
 
 export async function botPublicGet(c: Context) {
-  const botId = c.req.param("botId");
-  const supabase = createServiceClient();
-  const { data: bot } = await supabase
-    .from("bots")
-    .select("id, name, welcome_message, primary_color")
-    .eq("id", botId)
-    .maybeSingle();
+  try {
+    const botId = c.req.param("botId");
+    const supabase = createServiceClient();
+    const { data: bot, error } = await supabase
+      .from("bots")
+      .select("id, name, welcome_message, primary_color")
+      .eq("id", botId)
+      .maybeSingle();
 
-  if (!bot) return c.json({ error: "Bot not found" }, 404);
-  return c.json(bot);
+    if (error) {
+      logError("bot_public_get_failed", error, { bot_id: botId });
+      return c.json({ error: "Failed to load bot" }, 500);
+    }
+    if (!bot) return c.json({ error: "Bot not found" }, 404);
+    return c.json(bot);
+  } catch (err) {
+    logError("bot_public_get_unhandled", err);
+    const message = err instanceof Error ? err.message : "Internal Server Error";
+    return c.json({ error: message }, 500);
+  }
 }

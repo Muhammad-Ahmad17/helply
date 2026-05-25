@@ -13,7 +13,8 @@
     "./types": "./src/types.ts",
     "./ai/chunk": "./src/ai/chunk.ts",
     "./ai/embeddings": "./src/ai/embeddings.ts",
-    "./supabase/service": "./src/supabase/service.ts"
+    "./supabase/service": "./src/supabase/service.ts",
+    "./supabase/node-options": "./src/supabase/node-options.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.106.1",
@@ -21,10 +22,12 @@
     "@upstash/redis": "^1.38.0",
     "cheerio": "^1.2.0",
     "ioredis": "^5.10.1",
-    "p-limit": "^7.3.0"
+    "p-limit": "^7.3.0",
+    "ws": "^8.18.3"
   },
   "devDependencies": {
     "@types/node": "^22.7.4",
+    "@types/ws": "^8.18.1",
     "typescript": "^6.0.3"
   }
 }

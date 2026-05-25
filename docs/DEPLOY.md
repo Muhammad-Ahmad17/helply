@@ -138,8 +138,37 @@ make -C deploy status
 
 ```bash
 curl -I https://ragify.tech
-curl -I https://ragify.tech/api/chat   # OPTIONS or POST
+curl -I -X OPTIONS https://ragify.tech/api/chat
+curl -I -X POST https://ragify.tech/api/crawl   # expect 401, NOT 502
 curl https://ragify.tech/widget.js | head -5
+bash deploy/scripts/verify.sh
 ```
 
-See full OCI provisioning steps in sections 1–4 of the original runbook (unchanged).
+### POST /api/crawl returns 502
+
+Caddy on VM1 proxies `/api/crawl` to VM2 private IP port **3002**. A **502** means VM1 cannot reach crawl-api — not an app bug.
+
+**Checklist:**
+
+1. **OCI security list** — VM2 must allow TCP **3002–3004** from VCN (`10.0.0.0/16`), not just 6379:
+   ```bash
+   bash infra/oci/apply-policies.sh
+   ```
+   Or in OCI Console → VCN → Security Lists → helply-worker → Add ingress: TCP 3002–3004, source `10.0.0.0/16`.
+
+2. **VM2 services running:**
+   ```bash
+   ssh helply-worker
+   cd ~/helply/deploy/vm2 && docker compose ps
+   docker compose logs crawl-api --tail 30
+   ```
+
+3. **VM1 can reach VM2** (run on VM1, replace IP):
+   ```bash
+   curl -s -o /dev/null -w "%{http_code}" http://10.0.2.46:3002/health
+   # expect 200
+   ```
+
+4. **VM1 `.env`** — `VM2_PRIVATE_IP` must match VM2’s actual private IP.
+
+---

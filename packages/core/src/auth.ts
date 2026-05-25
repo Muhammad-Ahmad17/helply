@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { nodeSupabaseOptions } from "./supabase/node-options.js";
 
 export async function getUserFromBearer(
   authHeader: string | undefined
@@ -14,9 +15,7 @@ export async function getUserFromBearer(
 
   if (!url || !anonKey) return null;
 
-  const supabase = createClient(url, anonKey, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
+  const supabase = createClient(url, anonKey, nodeSupabaseOptions());
 
   const { data, error } = await supabase.auth.getUser(token);
   if (error || !data.user) return null;
