@@ -16,6 +16,18 @@ function requireEnv(name: string): string {
   return value;
 }
 
+function requireSupabaseUrl(): string {
+  const url = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!url) {
+    console.error(
+      "[worker] Missing required env: SUPABASE_URL or NEXT_PUBLIC_SUPABASE_URL"
+    );
+    process.exit(1);
+  }
+  return url;
+}
+
+requireSupabaseUrl();
 requireEnv("SUPABASE_SERVICE_ROLE_KEY");
 requireEnv("JINA_API_KEY");
 

@@ -203,6 +203,7 @@ nano .env
 **VM2 `.env`** — see `apps/worker/.env.example`. Minimum:
 
 ```env
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=eyJ...
 JINA_API_KEY=jina_...
 REDIS_BIND=10.0.0.13
