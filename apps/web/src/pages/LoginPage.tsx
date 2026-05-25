@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Loader2, CheckCircle2, ArrowLeft } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { supabase, supabaseConfigured } from "@/lib/supabase";
 import { SiteFooter } from "@/components/site-footer";
 
 const RESEND_COOLDOWN_SEC = 60;
@@ -23,6 +23,7 @@ export default function LoginPage() {
   const [params] = useSearchParams();
   const next = params.get("next") ?? "/dashboard";
   const callbackError = params.get("error");
+  const callbackDetail = params.get("detail");
 
   const [email, setEmail] = useState("");
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
@@ -31,12 +32,13 @@ export default function LoginPage() {
   const [cooldown, setCooldown] = useState(0);
 
   useEffect(() => {
-    if (callbackError === "callback_failed") {
-      setError("Sign-in failed. Please try again.");
-    } else if (callbackError) {
-      setError(decodeURIComponent(callbackError));
-    }
-  }, [callbackError]);
+    if (!callbackError) return;
+    const msg =
+      callbackError === "callback_failed"
+        ? callbackDetail ?? "Sign-in failed — no OAuth code returned."
+        : callbackError;
+    setError(msg);
+  }, [callbackError, callbackDetail]);
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -92,6 +94,12 @@ export default function LoginPage() {
           <p className="text-sm mb-8" style={{ color: "var(--fg-secondary)" }}>
             Continue with Google, or use a magic link sent to your email.
           </p>
+          {!supabaseConfigured && (
+            <p className="text-xs mb-4 p-3 rounded-lg" style={{ color: "#ef4444", background: "rgba(239,68,68,0.08)" }}>
+              Supabase is not configured in this build (missing VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY).
+              Fix deploy/vm1/.env and run: docker compose up -d --build web-static
+            </p>
+          )}
           <button type="button" onClick={signInWithGoogle} disabled={oauthLoading !== null} className="btn btn-secondary w-full btn-lg mb-6">
             {oauthLoading === "google" ? <Loader2 className="w-4 h-4 animate-spin" /> : <GoogleIcon />}
             Continue with Google
