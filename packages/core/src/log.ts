@@ -35,7 +35,12 @@ function captureSentry(err: unknown, extra: Record<string, unknown>) {
   if (!process.env.NEXT_PUBLIC_SENTRY_DSN) return;
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const Sentry = require("@sentry/nextjs") as typeof import("@sentry/nextjs");
+    const Sentry = require("@sentry/nextjs") as {
+      captureException: (
+        err: Error,
+        opts?: { extra?: Record<string, unknown> }
+      ) => void;
+    };
     Sentry.captureException(err instanceof Error ? err : new Error(String(err)), {
       extra,
     });

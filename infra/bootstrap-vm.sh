@@ -2,7 +2,7 @@
 # Bootstrap Oracle Cloud VM for Helply (Ubuntu 22.04/24.04).
 # Run once per VM as root or with sudo:
 #   curl -fsSL ... | bash
-#   OR: sudo bash scripts/bootstrap-vm.sh [app|worker]
+#   OR: sudo bash infra/bootstrap-vm.sh [app|worker]
 #
 # app    — VM1: open 22/80/443, install Docker
 # worker — VM2: open 22, install Docker (Redis port restricted via compose)
@@ -108,7 +108,7 @@ systemctl reload sshd || systemctl reload ssh
 log "Done. Role=$ROLE"
 log "Next: clone repo, create .env, run docker compose"
 if [[ "$ROLE" == "app" ]]; then
-  log "  cd ~/ragify/apps/app && docker compose up -d --build"
+  log "  cd ~/ragify/deploy/vm1 && docker compose up -d --build"
 else
-  log "  cd ~/ragify/apps/worker && docker compose up -d --build"
+  log "  cd ~/ragify/deploy/vm2 && docker compose up -d --build"
 fi

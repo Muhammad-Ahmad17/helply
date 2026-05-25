@@ -1,0 +1,26 @@
+# Build Vite SPA and copy to shared volume
+FROM node:20-alpine AS builder
+WORKDIR /app
+RUN apk add --no-cache libc6-compat
+
+COPY package.json package-lock.json ./
+COPY packages/core/package.json packages/core/
+COPY apps/web/package.json apps/web/
+
+ARG VITE_SUPABASE_URL
+ARG VITE_SUPABASE_ANON_KEY
+ARG VITE_APP_URL
+ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL
+ENV VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY
+ENV VITE_APP_URL=$VITE_APP_URL
+
+RUN npm ci --workspace=@ragify/web --include-workspace-root
+
+COPY packages/core packages/core
+COPY apps/web apps/web
+
+RUN npm run build -w @ragify/web
+
+FROM alpine:3.20
+COPY --from=builder /app/apps/web/dist /dist
+CMD ["sh", "-c", "cp -a /dist/. /out/ && exec sleep infinity"]

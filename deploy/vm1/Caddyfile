@@ -1,0 +1,74 @@
+# Ragify edge gateway — TLS, security headers, rate limits, routing
+{$DOMAIN} {
+	encode gzip zstd
+
+	# Security headers
+	header {
+		Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.groq.com https://api.jina.ai; frame-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"
+		-Server
+	}
+
+	# API — chat (VM1 local)
+	@chat path /api/chat /api/chat/*
+	rate_limit @chat {
+		zone chat {
+			key {remote_host}
+			events 30
+			window 1m
+		}
+	}
+	handle @chat {
+		reverse_proxy chat-api:3001
+	}
+
+	# Public bot config for embed
+	@bots path /api/bots/*
+	handle @bots {
+		reverse_proxy chat-api:3001
+	}
+
+	# API — VM2 services via private IP
+	@crawl path /api/crawl /api/crawl/*
+	rate_limit @crawl {
+		zone crawl {
+			key {remote_host}
+			events 10
+			window 1m
+		}
+	}
+	handle @crawl {
+		reverse_proxy {$VM2_PRIVATE_IP}:3002
+	}
+
+	@webhooks path /api/webhooks/*
+	handle @webhooks {
+		reverse_proxy {$VM2_PRIVATE_IP}:3003
+	}
+
+	@cron path /api/cron/*
+	handle @cron {
+		reverse_proxy {$VM2_PRIVATE_IP}:3004
+	}
+
+	# Widget loader (static)
+	handle /widget.js {
+		root * /srv/web
+		header Cache-Control "public, max-age=300"
+		header Access-Control-Allow-Origin "*"
+		file_server
+	}
+
+	# Legacy widget path
+	redir /api/widget.js /widget.js permanent
+
+	# SPA static files
+	handle {
+		root * /srv/web
+		try_files {path} /index.html
+		file_server
+	}
+}

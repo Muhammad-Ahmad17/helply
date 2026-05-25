@@ -130,8 +130,8 @@ Add to ~/.ssh/config:
     User ubuntu
 
 Next:
-  ssh helply-app  'git clone <repo> ~/helply && cd ~/helply && sudo bash scripts/bootstrap-vm.sh app'
-  ssh helply-worker 'git clone <repo> ~/helply && cd ~/helply && sudo bash scripts/bootstrap-vm.sh worker'
+  ssh helply-app  'git clone <repo> ~/ragify && cd ~/ragify && sudo bash infra/bootstrap-vm.sh app'
+  ssh helply-worker 'git clone <repo> ~/ragify && cd ~/ragify && sudo bash infra/bootstrap-vm.sh worker'
 
 VM2 .env:  REDIS_BIND=${HELPLY_WORKER_PRIVATE_IP}
 VM1 .env:  REDIS_URL=redis://${HELPLY_WORKER_PRIVATE_IP}:6379

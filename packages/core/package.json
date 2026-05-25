@@ -4,9 +4,12 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./auth": "./src/auth.ts",
     "./crawler": "./src/crawler.ts",
     "./crawl-worker": "./src/crawl-worker.ts",
     "./log": "./src/log.ts",
+    "./rate-limit": "./src/rate-limit.ts",
+    "./security": "./src/security.ts",
     "./types": "./src/types.ts",
     "./ai/chunk": "./src/ai/chunk.ts",
     "./ai/embeddings": "./src/ai/embeddings.ts",
@@ -14,7 +17,10 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.106.1",
+    "@upstash/ratelimit": "^2.0.8",
+    "@upstash/redis": "^1.38.0",
     "cheerio": "^1.2.0",
+    "ioredis": "^5.10.1",
     "p-limit": "^7.3.0"
   },
   "devDependencies": {

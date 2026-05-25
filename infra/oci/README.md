@@ -81,11 +81,11 @@ bash infra/oci/provision-all.sh
 
 Writes `infra/oci/.state.env` with OCIDs and IPs.
 
-Then bootstrap each VM (see [docs/SELF_HOST.md](../../docs/SELF_HOST.md)):
+Then bootstrap each VM (see [docs/DEPLOY.md](../../docs/DEPLOY.md)):
 
 ```bash
-ssh ubuntu@<APP_IP> 'git clone <your-repo> ~/helply && cd ~/helply && sudo bash scripts/bootstrap-vm.sh app'
-ssh ubuntu@<WORKER_IP> 'git clone <your-repo> ~/helply && cd ~/helply && sudo bash scripts/bootstrap-vm.sh worker'
+ssh ubuntu@<APP_IP> 'git clone <your-repo> ~/ragify && cd ~/ragify && sudo bash infra/bootstrap-vm.sh app'
+ssh ubuntu@<WORKER_IP> 'git clone <your-repo> ~/ragify && cd ~/ragify && sudo bash infra/bootstrap-vm.sh worker'
 ```
 
 ## Reuse existing VMs (your case)
@@ -187,4 +187,4 @@ infra/oci/
 
 ## Next steps
 
-Continue with [docs/SELF_HOST.md](../../docs/SELF_HOST.md) sections 5–9 (deploy Docker, DNS, smoke tests).
+Continue with [docs/DEPLOY.md](../../docs/DEPLOY.md) (deploy VM2, then VM1, DNS, smoke tests).
