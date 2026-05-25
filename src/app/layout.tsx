@@ -7,9 +7,9 @@ import { ThemeProvider } from "./theme-provider";
 import { THEME_STORAGE_KEY } from "@/lib/theme-constants";
 
 export const metadata: Metadata = {
-  title: "Helply — AI chat for your website",
+  title: "Ragify — AI chatbot trained on your content",
   description:
-    "Paste a URL, get an AI chatbot trained on your content. Embed it anywhere with one line of code.",
+    "Paste a URL, get an AI chatbot trained on your website. Embed it anywhere with one line of code.",
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"
   ),

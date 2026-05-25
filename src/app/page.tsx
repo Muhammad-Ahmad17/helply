@@ -25,14 +25,14 @@ function Hero() {
       <div className="hero-glow" />
       <div className="max-w-4xl mx-auto text-center relative z-10">
         <h1 className="text-[clamp(2.25rem,6vw,4rem)] font-medium tracking-[-0.03em] leading-[1.08] mb-6 anim-fade-up" style={{ color: "var(--fg)" }}>
-          Built to make your website
+          Your website, now
           <br />
-          extraordinarily helpful.
+          fluent in its own content.
         </h1>
         <p className="text-base sm:text-lg max-w-2xl mx-auto mb-8 leading-relaxed anim-fade-up delay-1 section-desc">
-          Helply is the best way to add AI support to your site. Paste a URL,
-          we index your content, and visitors get instant answers — grounded in
-          your docs, not the internet.
+          Ragify turns any URL into a trained AI chatbot in minutes. Visitors
+          get instant, accurate answers from your actual content — not guesses
+          from the internet.
         </p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center anim-fade-up delay-2">
           <Link href="/login" className="btn btn-primary btn-lg">
@@ -56,7 +56,7 @@ function TrustBar() {
   return (
     <section className="py-16 px-5" style={{ borderTop: "1px solid var(--border)" }}>
       <p className="text-center text-sm mb-8" style={{ color: "var(--fg-muted)" }}>
-        Trusted by teams building world-class websites
+        Works with content from
       </p>
       <div className="max-w-4xl mx-auto flex flex-wrap items-center justify-center gap-x-10 gap-y-4 opacity-50">
         {logos.map((name) => (
@@ -74,21 +74,21 @@ function FeatureSections() {
     <div id="features">
       <FeatureBlock
         id="how"
-        title="Paste a URL, get a chatbot"
-        description="Hand off the hard part to Helply. We crawl your site, chunk the content, embed it into a vector database, and give you a one-line script to embed anywhere."
+        title="From URL to chatbot in 60 seconds"
+        description="Paste any URL. Ragify crawls the page, splits it into semantic chunks, embeds them into a vector database, and hands you a one-line script — no config required."
         linkText="Learn about indexing"
         visual={<IndexingVisual />}
         reverse
       />
       <FeatureBlock
-        title="Answers grounded in your content"
-        description="Every response is retrieved from your indexed pages first. The AI only speaks from your docs — no hallucinations, no made-up pricing, no wrong API endpoints."
+        title="Answers from your content, not the internet"
+        description="Every response starts with a vector search over your indexed pages. The AI quotes your docs, not its training data — accurate pricing, correct API names, real steps."
         linkText="Learn about RAG"
         visual={<RagVisual />}
       />
       <FeatureBlock
-        title="Embed on any website"
-        description="One script tag. Works on WordPress, Shopify, Webflow, static HTML, React apps — anything. The widget loads async and won't slow your page."
+        title="One script tag, any platform"
+        description="Drop a single &lt;script&gt; tag anywhere — WordPress, Shopify, Webflow, raw HTML, React. The widget is async, isolated in an iframe, and won't affect your page speed."
         linkText="See embed docs"
         visual={<EmbedVisual />}
         reverse
@@ -207,17 +207,17 @@ function Row({ label, value, accent }: { label: string; value: string; accent?: 
 function Testimonials() {
   const quotes = [
     {
-      text: "We added Helply to our docs site in 10 minutes. Support tickets dropped 40% in the first week.",
+      text: "We added Ragify to our docs in under 10 minutes. Support tickets dropped 40% in the first week.",
       author: "Sarah Chen",
       role: "Head of Product, Acme Labs",
     },
     {
-      text: "Finally a chatbot that actually reads our documentation instead of making things up.",
+      text: "Finally an AI chatbot that actually reads our documentation instead of confidently making things up.",
       author: "Marcus Webb",
       role: "CTO, Stackline",
     },
     {
-      text: "One script tag, zero maintenance. Our non-technical team can update sources themselves.",
+      text: "One script tag, zero maintenance. Our non-technical team can update sources whenever content changes.",
       author: "Priya Sharma",
       role: "Founder, Docflow",
     },
@@ -226,7 +226,7 @@ function Testimonials() {
   return (
     <section className="py-24 px-5" style={{ background: "var(--bg-subtle)", borderTop: "1px solid var(--border)" }}>
       <div className="max-w-6xl mx-auto">
-        <h2 className="section-title text-center mb-16">The new way to support visitors.</h2>
+        <h2 className="section-title text-center mb-16">Real results. Real content.</h2>
         <div className="grid md:grid-cols-3 gap-8">
           {quotes.map((q) => (
             <blockquote key={q.author}>
@@ -256,13 +256,13 @@ function Pricing() {
       <div className="max-w-4xl mx-auto grid md:grid-cols-3 gap-4">
         <PriceCard
           name="Free"
-          tagline="Try Helply on one site"
+          tagline="Try Ragify on one site"
           price="$0"
           features={[
             { label: "1 chatbot", detail: "One AI assistant for a single website or docs hub" },
             { label: "100 pages indexed", detail: "Crawl and search up to 100 URLs" },
             { label: "500 messages / month", detail: "Enough for testing with real visitors" },
-            { label: "Helply badge", detail: "Small powered-by link on the widget" },
+            { label: "Ragify badge", detail: "Small powered-by link on the widget" },
           ]}
           cta="Get Started"
           href="/login"
@@ -275,7 +275,7 @@ function Pricing() {
             { label: "3 chatbots", detail: "Run assistants for multiple sites or products" },
             { label: "1,000 pages indexed", detail: "Full docs sites and marketing pages" },
             { label: "5,000 messages / month", detail: "Steady traffic without overages" },
-            { label: "Remove branding", detail: "White-label widget — no Helply badge" },
+            { label: "Remove branding", detail: "White-label widget — no Ragify badge" },
             { label: "Priority crawling", detail: "Re-index sources faster when content changes" },
           ]}
           cta="Coming soon"
@@ -350,7 +350,8 @@ function PriceCard({
 function FinalCTA() {
   return (
     <section className="py-28 px-5 text-center" style={{ borderTop: "1px solid var(--border)" }}>
-      <h2 className="section-title mb-4">Try Helply now.</h2>
+      <h2 className="section-title mb-4">Your content deserves better answers.</h2>
+      <p className="section-desc mb-6 max-w-sm mx-auto">Start free. No credit card required.</p>
       <Link href="/login" className="btn btn-primary btn-lg">
         Get Started
       </Link>

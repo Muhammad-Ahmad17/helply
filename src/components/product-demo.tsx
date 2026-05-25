@@ -1,6 +1,6 @@
 "use client";
 
-/** Cursor-style product mockup: browser chrome + Helply dashboard + chat widget */
+/** Product mockup: browser chrome + Ragify dashboard + chat widget */
 export function ProductDemo() {
   return (
     <div className="demo-frame w-full max-w-5xl mx-auto anim-fade-up delay-3">
@@ -17,7 +17,7 @@ export function ProductDemo() {
           className="flex-1 mx-4 h-7 rounded-md flex items-center justify-center text-[11px] font-mono"
           style={{ background: "var(--demo-bg)", color: "var(--demo-muted)" }}
         >
-          helply.aamad.app/dashboard
+          ragify.tech/dashboard
         </div>
       </div>
 
@@ -68,7 +68,7 @@ export function ProductDemo() {
               color: "var(--demo-code)",
             }}
           >
-            {"<script src=\"https://helply.aamad.app/api/widget.js\" data-bot=\"abc123\" defer></script>"}
+            {"<script src=\"https://ragify.tech/api/widget.js\" data-bot=\"abc123\" defer></script>"}
           </div>
 
           <div

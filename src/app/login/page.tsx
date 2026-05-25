@@ -112,7 +112,7 @@ function LoginForm() {
     <div className="min-h-screen flex flex-col" style={{ background: "var(--bg)" }}>
       <header className="px-5 h-14 flex items-center">
         <Link href="/" className="text-sm font-medium" style={{ color: "var(--fg)" }}>
-          Helply
+          Ragify
         </Link>
       </header>
 
@@ -127,7 +127,7 @@ function LoginForm() {
           </Link>
 
           <h1 className="text-2xl font-medium tracking-tight mb-2" style={{ color: "var(--fg)" }}>
-            Sign in to Helply
+            Sign in to Ragify
           </h1>
           <p className="text-sm mb-8" style={{ color: "var(--fg-secondary)" }}>
             Continue with Google, or use a magic link sent to your email.

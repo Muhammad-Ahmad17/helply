@@ -3,8 +3,8 @@ import { PLAN_LIMITS, type BotPlan } from "@/lib/types";
 import { log } from "@/lib/log";
 
 const THRESHOLDS = [
-  { key: "80", pct: 0.8, subject: "Helply: 80% of monthly messages used" },
-  { key: "100", pct: 1.0, subject: "Helply: monthly message limit reached" },
+  { key: "80", pct: 0.8, subject: "Ragify: 80% of monthly messages used" },
+  { key: "100", pct: 1.0, subject: "Ragify: monthly message limit reached" },
 ] as const;
 
 async function sendEmail(to: string, subject: string, body: string) {
@@ -14,7 +14,7 @@ async function sendEmail(to: string, subject: string, body: string) {
     return;
   }
 
-  const from = process.env.RESEND_FROM_EMAIL ?? "Helply <onboarding@resend.dev>";
+  const from = process.env.RESEND_FROM_EMAIL ?? "Ragify <onboarding@resend.dev>";
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {

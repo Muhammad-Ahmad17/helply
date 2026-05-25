@@ -7,7 +7,7 @@ const FETCH_TIMEOUT_MS = 15_000;
 const MAX_BYTES = 2_000_000;
 const MAX_REDIRECTS = 3;
 const USER_AGENT =
-  "HelplyBot/1.0 (+https://helply.aamad.app; AI documentation indexing)";
+  "RagifyBot/1.0 (+https://ragify.tech; AI documentation indexing)";
 
 const REMOVE_SELECTORS = [
   "script",

@@ -4,11 +4,13 @@ function Logo() {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden>
       <rect width="24" height="24" rx="6" fill="var(--fg)" />
+      {/* R for Ragify */}
       <path
-        d="M7 8h10M7 12h7M7 16h10"
+        d="M8 7h4.5a2.5 2.5 0 0 1 0 5H8m0-5v10m4.5-5 3.5 5"
         stroke="var(--bg)"
         strokeWidth="1.5"
         strokeLinecap="round"
+        strokeLinejoin="round"
       />
     </svg>
   );
@@ -29,7 +31,7 @@ export function SiteNav() {
         <Link href="/" className="flex items-center gap-2.5">
           <Logo />
           <span className="text-sm font-medium" style={{ color: "var(--fg)" }}>
-            Helply
+            Ragify
           </span>
         </Link>
 

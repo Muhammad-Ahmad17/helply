@@ -166,7 +166,7 @@ export function ChatUI({ botId, botName, welcome, color }: { botId: string; botN
 
       <div style={{ textAlign: "center", padding: "6px 0", background: "#fff" }}>
         <a href={getAppUrl()} target="_blank" rel="noreferrer" style={{ fontSize: 10, color: "#a1a1aa", textDecoration: "none" }}>
-          Powered by <span style={{ fontWeight: 500 }}>Helply</span>
+          Powered by <span style={{ fontWeight: 500 }}>Ragify</span>
         </a>
       </div>
     </div>

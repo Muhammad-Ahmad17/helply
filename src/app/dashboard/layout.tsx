@@ -27,7 +27,7 @@ export default async function DashboardLayout({
         }}
       >
         <Link href="/dashboard" className="text-sm font-medium" style={{ color: "var(--fg)" }}>
-          Helply
+          Ragify
         </Link>
         <div className="flex items-center gap-2">
           <span className="text-xs hidden sm:inline" style={{ color: "var(--fg-muted)" }}>

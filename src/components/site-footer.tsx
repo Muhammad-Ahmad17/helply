@@ -35,10 +35,10 @@ export function SiteFooter() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-10 mb-12">
           <div className="col-span-2 md:col-span-1">
             <Link href="/" className="text-sm font-medium" style={{ color: "var(--fg)" }}>
-              Helply
+              Ragify
             </Link>
             <p className="text-xs mt-3 leading-relaxed max-w-[200px]" style={{ color: "var(--fg-muted)" }}>
-              AI chat trained on your website. Embed anywhere with one line of code.
+              Turn any website into an AI assistant. Embed anywhere in seconds.
             </p>
           </div>
 
@@ -69,7 +69,7 @@ export function SiteFooter() {
           style={{ borderTop: "1px solid var(--border)" }}
         >
           <p className="text-xs" style={{ color: "var(--fg-muted)" }}>
-            &copy; {new Date().getFullYear()} Helply. All rights reserved.
+            &copy; {new Date().getFullYear()} Ragify. All rights reserved.
           </p>
           <ThemeSwitcher />
         </div>
