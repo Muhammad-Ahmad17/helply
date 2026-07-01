@@ -1,19 +1,13 @@
 #!/usr/bin/env bash
-# Nuclear cleanup — run on a VM before first deploy of new stack
+# Stop all Ragify containers and prune Docker on a host.
 set -euo pipefail
 
-echo "==> Stopping all containers..."
-docker stop $(docker ps -aq) 2>/dev/null || true
-docker rm $(docker ps -aq) 2>/dev/null || true
+echo "==> Stopping Ragify stacks..."
+docker compose -f ~/ragify/deploy/do/docker-compose.yml down --remove-orphans 2>/dev/null || true
+docker compose -f ~/ragify/deploy/oci/docker-compose.embed.yml down --remove-orphans 2>/dev/null || true
+docker compose -f ~/ragify/deploy/oci/docker-compose.worker.yml down --remove-orphans 2>/dev/null || true
 
-echo "==> Removing old compose stacks..."
-docker compose -f ~/helply/docker-compose.yml down --remove-orphans 2>/dev/null || true
-docker compose -f ~/helply/apps/app/docker-compose.yml down --remove-orphans 2>/dev/null || true
-docker compose -f ~/helply/apps/worker/docker-compose.yml down --remove-orphans 2>/dev/null || true
-docker compose -f ~/ragify/deploy/vm1/docker-compose.yml down --remove-orphans 2>/dev/null || true
-docker compose -f ~/ragify/deploy/vm2/docker-compose.yml down --remove-orphans 2>/dev/null || true
-
-docker network prune -f
+echo "==> Pruning unused Docker resources..."
 docker system prune -af
 
-echo "==> Done. Clone/pull ragify and deploy from deploy/vm1 or deploy/vm2."
+echo "==> Done. Clone/pull ragify and deploy from deploy/do or deploy/oci."

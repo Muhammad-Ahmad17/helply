@@ -1,6 +1,6 @@
 {
   "name": "@ragify/web",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -10,13 +10,17 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@clerk/clerk-react": "^5.25.0",
+    "@fontsource/geist-mono": "^5.2.8",
+    "@fontsource/geist-sans": "^5.2.5",
     "@ragify/core": "*",
-    "@supabase/supabase-js": "^2.106.1",
+    "@sentry/react": "^9.5.0",
     "clsx": "^2.1.1",
     "lucide-react": "^1.16.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-router-dom": "^7.6.2",
+    "simple-icons": "^16.24.1",
     "tailwind-merge": "^3.0.2"
   },
   "devDependencies": {

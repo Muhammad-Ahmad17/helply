@@ -1,16 +1,17 @@
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis as UpstashRedis } from "@upstash/redis";
-import Redis from "ioredis";
+import IORedis from "ioredis";
 
-type RedisBackend = UpstashRedis | Redis;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type RedisBackend = UpstashRedis | any;
 
 function createRedisBackend(): RedisBackend | null {
   const redisUrl = process.env.REDIS_URL;
   if (redisUrl) {
-    return new Redis(redisUrl, {
-      maxRetriesPerRequest: 3,
-      lazyConnect: true,
-    });
+    return new (IORedis as unknown as new (url: string, opts?: object) => RedisBackend)(
+      redisUrl,
+      { maxRetriesPerRequest: 3, lazyConnect: true }
+    );
   }
 
   const url = process.env.UPSTASH_REDIS_REST_URL;
@@ -24,11 +25,11 @@ function createRedisBackend(): RedisBackend | null {
 
 const redis = createRedisBackend();
 
-if (process.env.NODE_ENV === "production" && redis instanceof Redis) {
-  void redis
+if (process.env.NODE_ENV === "production" && redis && "connect" in redis) {
+  void (redis as { connect: () => Promise<void>; ping: () => Promise<string> })
     .connect()
-    .then(() => redis.ping())
-    .then((pong) => {
+    .then(() => (redis as { ping: () => Promise<string> }).ping())
+    .then((pong: string) => {
       if (pong !== "PONG") {
         console.error("[rate-limit] Redis ping failed — rate limits may not work");
       }
@@ -84,9 +85,7 @@ export async function checkRateLimit(
 
   if (!limiter) {
     if (process.env.NODE_ENV === "production") {
-      console.warn(
-        "[rate-limit] Redis not configured — rate limiting disabled"
-      );
+      console.warn("[rate-limit] Redis not configured — rate limiting disabled");
     }
     return noopResult;
   }

@@ -1,13 +1,11 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -18,13 +16,21 @@ jobs:
           cache: npm
 
       - run: npm ci
-
       - run: npm run typecheck
-
       - run: npm run build -w @ragify/web
 
       - name: Verify env examples exist
         run: |
-          test -f deploy/vm1/.env.example
-          test -f deploy/vm2/.env.example
+          test -f deploy/do/.env.example
+          test -f deploy/oci/.env.example
           test -f apps/web/.env.example
+
+      - name: Validate Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.0"
+      - run: terraform fmt -check -recursive infra/terraform
+      - run: terraform init -backend=false
+        working-directory: infra/terraform
+      - run: terraform validate
+        working-directory: infra/terraform

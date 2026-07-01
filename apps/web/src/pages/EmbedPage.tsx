@@ -89,6 +89,7 @@ export default function EmbedPage() {
       botName={bot.name}
       welcome={bot.welcome_message}
       color={bot.primary_color}
+      starterQuestions={[`Tell me about ${bot.name}`, "What do you know?"]}
     />
   );
 }

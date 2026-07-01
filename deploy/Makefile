@@ -1,47 +1,24 @@
-# Ragify deploy helpers
-# Configure in ~/.ssh/config or override:
-#   make deploy VM1=helply-app VM2=helply-worker
-
-VM1        ?= helply-app
-VM2        ?= helply-worker
+# Hybrid deploy: DO droplet + OCI VMs
 REMOTE_DIR ?= ~/ragify
+DROPLET ?= root@your-droplet-ip
+OCI_EMBED ?= ubuntu@your-embed-ip
+OCI_WORKER ?= ubuntu@your-worker-ip
 
-.PHONY: deploy deploy-all deploy-vm1 deploy-vm2 rewash-all rewash-vm1 rewash-vm2 status logs-app logs-worker nuclear-cleanup verify
+.PHONY: deploy deploy-do deploy-oci verify status
 
-deploy: deploy-vm2 deploy-vm1
+deploy: deploy-oci deploy-do verify
 
-deploy-all: deploy
+deploy-do:
+	ssh $(DROPLET) 'cd $(REMOTE_DIR)/deploy/do && git pull && docker compose up -d --build'
 
-deploy-vm1:
-	ssh $(VM1) 'cd $(REMOTE_DIR) && git pull && cd deploy/vm1 && docker compose up -d --build'
-
-deploy-vm2:
-	ssh $(VM2) 'cd $(REMOTE_DIR) && git pull && cd deploy/vm2 && docker compose up -d --build'
-
-rewash-all:
-	bash scripts/rewash-all.sh
-
-rewash-vm1:
-	ssh $(VM1) 'cd $(REMOTE_DIR) && git pull && bash deploy/scripts/rewash-vm1.sh'
-
-rewash-vm2:
-	ssh $(VM2) 'cd $(REMOTE_DIR) && git pull && bash deploy/scripts/rewash-vm2.sh'
-
-status:
-	@echo "=== VM1 ==="
-	ssh $(VM1) 'cd $(REMOTE_DIR)/deploy/vm1 && docker compose ps'
-	@echo "=== VM2 ==="
-	ssh $(VM2) 'cd $(REMOTE_DIR)/deploy/vm2 && docker compose ps'
-
-logs-app:
-	ssh $(VM1) 'cd $(REMOTE_DIR)/deploy/vm1 && docker compose logs -f --tail=100 caddy chat-api'
-
-logs-worker:
-	ssh $(VM2) 'cd $(REMOTE_DIR)/deploy/vm2 && docker compose logs -f --tail=100 worker crawl-api'
-
-nuclear-cleanup:
-	ssh $(VM1) 'bash -s' < scripts/nuclear-cleanup.sh
-	ssh $(VM2) 'bash -s' < scripts/nuclear-cleanup.sh
+deploy-oci:
+	ssh $(OCI_EMBED) 'cd $(REMOTE_DIR)/deploy/oci && git pull && docker compose -f docker-compose.embed.yml up -d --build'
+	ssh $(OCI_WORKER) 'cd $(REMOTE_DIR)/deploy/oci && git pull && docker compose -f docker-compose.worker.yml up -d --build'
 
 verify:
-	bash scripts/verify.sh
+	bash deploy/scripts/verify.sh
+
+status:
+	ssh $(DROPLET) 'cd $(REMOTE_DIR)/deploy/do && docker compose ps'
+	ssh $(OCI_EMBED) 'cd $(REMOTE_DIR)/deploy/oci && docker compose -f docker-compose.embed.yml ps'
+	ssh $(OCI_WORKER) 'cd $(REMOTE_DIR)/deploy/oci && docker compose -f docker-compose.worker.yml ps'

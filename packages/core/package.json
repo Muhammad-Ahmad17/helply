@@ -1,6 +1,6 @@
 {
   "name": "@ragify/core",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "exports": {
@@ -13,18 +13,24 @@
     "./types": "./src/types.ts",
     "./ai/chunk": "./src/ai/chunk.ts",
     "./ai/embeddings": "./src/ai/embeddings.ts",
-    "./supabase/service": "./src/supabase/service.ts",
-    "./supabase/node-options": "./src/supabase/node-options.ts",
-    "./quota-alerts": "./src/quota-alerts.ts"
+    "./db": "./src/db/index.ts",
+    "./queue": "./src/queue/index.ts",
+    "./zyte": "./src/zyte/index.ts",
+    "./quota-alerts": "./src/quota-alerts.ts",
+    "./content": "./src/content/index.ts",
+    "./content/pdf": "./src/content/pdf.ts"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.106.1",
+    "@clerk/backend": "^1.25.0",
     "@sentry/node": "^9.5.0",
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.38.0",
+    "bullmq": "^5.49.0",
     "cheerio": "^1.2.0",
     "ioredis": "^5.10.1",
     "p-limit": "^7.3.0",
+    "pdf-parse": "^2.4.5",
+    "postgres": "^3.4.5",
     "ws": "^8.18.3"
   },
   "devDependencies": {

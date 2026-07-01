@@ -1,4 +1,5 @@
 export type SourceStatus = "pending" | "crawling" | "ready" | "error";
+export type SourceKind = "url" | "text" | "pdf";
 export type BotPlan = "free" | "starter" | "pro";
 export type CrawlJobStatus = "pending" | "running" | "done" | "error";
 
@@ -23,6 +24,7 @@ export interface Source {
   bot_id: string;
   url: string;
   title: string | null;
+  kind: SourceKind;
   status: SourceStatus;
   error_message: string | null;
   last_crawled_at: string | null;
@@ -46,8 +48,8 @@ export interface UserProfile {
   user_id: string;
   plan: BotPlan;
   is_admin: boolean;
-  lemon_customer_id: string | null;
-  lemon_subscription_id: string | null;
+  stripe_customer_id: string | null;
+  stripe_subscription_id: string | null;
   updated_at: string;
 }
 

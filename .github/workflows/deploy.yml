@@ -1,0 +1,135 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      git_ref:
+        description: Git ref to deploy
+        required: false
+        default: main
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}/ragify
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.git_ref || github.ref }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run build -w @ragify/web
+
+  build-push:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.git_ref || github.ref }}
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push API
+        run: |
+          docker build -f apps/api/Dockerfile -t ${{ env.IMAGE_PREFIX }}-api:${{ github.sha }} -t ${{ env.IMAGE_PREFIX }}-api:latest .
+          docker push ${{ env.IMAGE_PREFIX }}-api:${{ github.sha }}
+          docker push ${{ env.IMAGE_PREFIX }}-api:latest
+
+      - name: Build and push embed
+        run: |
+          docker build -f apps/embed/Dockerfile -t ${{ env.IMAGE_PREFIX }}-embed:${{ github.sha }} -t ${{ env.IMAGE_PREFIX }}-embed:latest .
+          docker push ${{ env.IMAGE_PREFIX }}-embed:${{ github.sha }}
+          docker push ${{ env.IMAGE_PREFIX }}-embed:latest
+
+      - name: Build and push worker
+        run: |
+          docker build -f apps/worker/Dockerfile -t ${{ env.IMAGE_PREFIX }}-worker:${{ github.sha }} -t ${{ env.IMAGE_PREFIX }}-worker:latest .
+          docker push ${{ env.IMAGE_PREFIX }}-worker:${{ github.sha }}
+          docker push ${{ env.IMAGE_PREFIX }}-worker:latest
+
+      - name: Build and push web-static
+        run: |
+          docker build -f deploy/do/Dockerfile.web \
+            --build-arg VITE_CLERK_PUBLISHABLE_KEY=${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }} \
+            --build-arg VITE_APP_URL=${{ secrets.VITE_APP_URL }} \
+            --build-arg VITE_STRIPE_PUBLISHABLE_KEY=${{ secrets.VITE_STRIPE_PUBLISHABLE_KEY }} \
+            -t ${{ env.IMAGE_PREFIX }}-web:${{ github.sha }} .
+          docker push ${{ env.IMAGE_PREFIX }}-web:${{ github.sha }}
+
+  deploy:
+    needs: build-push
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy OCI embed VM
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.OCI_EMBED_HOST }}
+          username: ${{ secrets.OCI_EMBED_USER || 'ubuntu' }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            cd ~/ragify/deploy/oci
+            export IMAGE_PREFIX=${{ env.IMAGE_PREFIX }}
+            export GIT_SHA=${{ github.sha }}
+            docker compose -f docker-compose.embed.yml pull || true
+            docker compose -f docker-compose.embed.yml up -d --build
+
+      - name: Deploy OCI worker VM
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.OCI_WORKER_HOST }}
+          username: ${{ secrets.OCI_WORKER_USER || 'ubuntu' }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            cd ~/ragify/deploy/oci
+            docker compose -f docker-compose.worker.yml pull || true
+            docker compose -f docker-compose.worker.yml up -d --build
+
+      - name: Deploy DO droplet
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DROPLET_HOST }}
+          username: ${{ secrets.DROPLET_USER || 'root' }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            cd ~/ragify/deploy/do
+            docker compose pull || true
+            docker compose up -d --build
+
+      - name: Smoke tests
+        run: bash deploy/scripts/verify.sh
+        env:
+          DOMAIN: ${{ secrets.DOMAIN }}
+
+      - name: Sentry release
+        if: ${{ secrets.SENTRY_AUTH_TOKEN != '' }}
+        run: |
+          curl -sS https://sentry.io/api/0/organizations/${{ secrets.SENTRY_ORG }}/releases/ \
+            -H "Authorization: Bearer ${{ secrets.SENTRY_AUTH_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{"version":"${{ github.sha }}"}' || true

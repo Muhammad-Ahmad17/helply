@@ -1,60 +1,89 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Send, X, Bot as BotIcon, Loader2 } from "lucide-react";
+import { Send, X, Bot as BotIcon } from "lucide-react";
 import { getAppUrl } from "@/lib/utils";
 import type { ChatMessage } from "@ragify/core/types";
 
+const VID_KEY = "ragify-vid";
+const LEGACY_VID_KEY = "helply-vid";
+
 function makeVisitorId() {
-  const KEY = "helply-vid";
   if (typeof window === "undefined") return "ssr";
-  let id = localStorage.getItem(KEY);
-  if (!id) { id = crypto.randomUUID(); localStorage.setItem(KEY, id); }
+  let id = localStorage.getItem(VID_KEY) ?? localStorage.getItem(LEGACY_VID_KEY);
+  if (!id) {
+    id = crypto.randomUUID();
+  }
+  localStorage.setItem(VID_KEY, id);
   return id;
 }
 
-export function ChatUI({ botId, botName, welcome, color }: { botId: string; botName: string; welcome: string; color: string }) {
+function TypingDots({ color }: { color: string }) {
+  return (
+    <div className="flex items-center gap-1 px-3.5 py-3">
+      {[0, 1, 2].map((i) => (
+        <span
+          key={i}
+          className="w-1.5 h-1.5 rounded-full animate-bounce"
+          style={{ background: color, animationDelay: `${i * 150}ms` }}
+        />
+      ))}
+    </div>
+  );
+}
+
+export function ChatUI({
+  botId,
+  botName,
+  welcome,
+  color,
+  starterQuestions = [],
+}: {
+  botId: string;
+  botName: string;
+  welcome: string;
+  color: string;
+  starterQuestions?: string[];
+}) {
   const [messages, setMessages] = useState<ChatMessage[]>([{ role: "assistant", content: welcome }]);
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const vid = useRef("");
 
-  useEffect(() => { vid.current = makeVisitorId(); }, []);
-  useEffect(() => { scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" }); }, [messages]);
+  const defaults =
+    starterQuestions.length > 0
+      ? starterQuestions
+      : [`What can you tell me about ${botName}?`, "What topics do you know about?"];
 
-  async function send(e: React.FormEvent) {
-    e.preventDefault();
-    const text = input.trim();
-    if (!text || streaming) return;
+  useEffect(() => {
+    vid.current = makeVisitorId();
+  }, []);
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+  }, [messages, streaming]);
+
+  async function sendMessage(text: string) {
+    if (!text.trim() || streaming) return;
     setInput("");
     setStreaming(true);
     const next: ChatMessage[] = [...messages, { role: "user", content: text }];
     setMessages([...next, { role: "assistant", content: "" }]);
 
     try {
-      const apiBase =
-        typeof window !== "undefined" ? window.location.origin : getAppUrl();
-
-      // Only send clean history (no error placeholders) — last 10 turns max
+      const apiBase = typeof window !== "undefined" ? window.location.origin : getAppUrl();
       const history = messages
-        .filter(
-          (m) =>
-            m.content.trim() &&
-            !m.content.startsWith("Something went wrong")
-        )
+        .filter((m) => m.content.trim() && !m.content.startsWith("Something went wrong"))
         .slice(-10);
-
-      const payload = {
-        botId,
-        visitorId: vid.current,
-        messages: [...history, { role: "user" as const, content: text }],
-      };
 
       const res = await fetch(`${apiBase}/api/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          botId,
+          visitorId: vid.current,
+          messages: [...history, { role: "user" as const, content: text }],
+        }),
       });
 
       if (!res.ok) {
@@ -69,18 +98,37 @@ export function ChatUI({ botId, botName, welcome, color }: { botId: string; botN
         const { done, value } = await reader.read();
         if (done) break;
         acc += dec.decode(value, { stream: true });
-        setMessages((p) => { const o = [...p]; o[o.length - 1] = { role: "assistant", content: acc }; return o; });
+        setMessages((p) => {
+          const o = [...p];
+          o[o.length - 1] = { role: "assistant", content: acc };
+          return o;
+        });
       }
     } catch (err) {
-      setMessages((p) => { const o = [...p]; o[o.length - 1] = { role: "assistant", content: "Something went wrong. Please try again." + (err instanceof Error ? ` (${err.message})` : "") }; return o; });
+      setMessages((p) => {
+        const o = [...p];
+        o[o.length - 1] = {
+          role: "assistant",
+          content:
+            "Something went wrong. Please try again." +
+            (err instanceof Error ? ` (${err.message})` : ""),
+        };
+        return o;
+      });
     } finally {
       setStreaming(false);
     }
   }
 
+  function send(e: React.FormEvent) {
+    e.preventDefault();
+    void sendMessage(input.trim());
+  }
+
+  const showStarters = messages.length === 1 && !streaming;
+
   return (
-    <div className="flex flex-col h-screen w-screen" style={{ fontFamily: "system-ui, -apple-system, sans-serif" }}>
-      {/* header */}
+    <div className="flex flex-col h-screen w-screen" style={{ fontFamily: "var(--font-geist-sans), system-ui, sans-serif" }}>
       <div className="flex items-center justify-between px-4 py-3" style={{ background: color }}>
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center">
@@ -93,36 +141,58 @@ export function ChatUI({ botId, botName, welcome, color }: { botId: string; botN
             </p>
           </div>
         </div>
-        <button onClick={() => window.parent.postMessage({ helply: true, type: "close" }, "*")} className="w-7 h-7 rounded-md hover:bg-white/10 flex items-center justify-center">
+        <button
+          onClick={() =>
+            window.parent.postMessage({ ragify: true, helply: true, type: "close" }, "*")
+          }
+          className="w-7 h-7 rounded-md hover:bg-white/10 flex items-center justify-center"
+        >
           <X className="w-4 h-4 text-white" />
         </button>
       </div>
 
-      {/* messages */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-2.5" style={{ background: "#fafafa" }}>
         {messages.map((m, i) => (
           <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-            <div
-              className="max-w-[82%] px-3.5 py-2.5 text-[13px] leading-relaxed whitespace-pre-wrap"
-              style={
-                m.role === "user"
-                  ? { background: color, color: "#fff", borderRadius: "10px 10px 2px 10px" }
-                  : { background: "#fff", color: "#27272a", borderRadius: "10px 10px 10px 2px", border: "1px solid #e4e4e7" }
-              }
-            >
-              {m.content || <span style={{ opacity: 0.3 }}>...</span>}
-            </div>
+            {m.role === "assistant" && streaming && i === messages.length - 1 && !m.content ? (
+              <TypingDots color={color} />
+            ) : (
+              <div
+                className="max-w-[82%] px-3.5 py-2.5 text-[13px] leading-relaxed whitespace-pre-wrap"
+                style={
+                  m.role === "user"
+                    ? { background: color, color: "#fff", borderRadius: "10px 10px 2px 10px" }
+                    : {
+                        background: "#fff",
+                        color: "#27272a",
+                        borderRadius: "10px 10px 10px 2px",
+                        border: "1px solid #e4e4e7",
+                      }
+                }
+              >
+                {m.content || null}
+              </div>
+            )}
           </div>
         ))}
-        {streaming && messages[messages.length - 1]?.content === "" && (
-          <div className="flex items-center gap-1.5 px-1">
-            <Loader2 className="w-3 h-3 animate-spin" style={{ color: "#a1a1aa" }} />
-            <span style={{ fontSize: 11, color: "#a1a1aa" }}>Thinking...</span>
+
+        {showStarters && (
+          <div className="flex flex-wrap gap-2 pt-1">
+            {defaults.slice(0, 3).map((q) => (
+              <button
+                key={q}
+                type="button"
+                onClick={() => void sendMessage(q)}
+                className="text-left text-xs px-3 py-2 rounded-lg transition-opacity hover:opacity-80"
+                style={{ background: "#fff", border: "1px solid #e4e4e7", color: "#525252" }}
+              >
+                {q}
+              </button>
+            ))}
           </div>
         )}
       </div>
 
-      {/* input */}
       <div style={{ borderTop: "1px solid #e4e4e7", background: "#fff", padding: "10px 12px" }}>
         <form onSubmit={send} className="flex items-center gap-2">
           <input
@@ -165,8 +235,13 @@ export function ChatUI({ botId, botName, welcome, color }: { botId: string; botN
       </div>
 
       <div style={{ textAlign: "center", padding: "6px 0", background: "#fff" }}>
-        <a href={getAppUrl()} target="_blank" rel="noreferrer" style={{ fontSize: 10, color: "#a1a1aa", textDecoration: "none" }}>
-          Powered by <span style={{ fontWeight: 500 }}>Ragify</span>
+        <a
+          href={getAppUrl()}
+          target="_blank"
+          rel="noreferrer"
+          style={{ fontSize: 10, color: "#a1a1aa", textDecoration: "none" }}
+        >
+          Powered by <span style={{ fontWeight: 500, color: "#10b981" }}>Ragify</span>
         </a>
       </div>
     </div>

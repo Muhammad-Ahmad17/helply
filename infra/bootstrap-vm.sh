@@ -4,8 +4,9 @@
 #   curl -fsSL ... | bash
 #   OR: sudo bash infra/bootstrap-vm.sh [app|worker]
 #
-# app    — VM1: open 22/80/443, install Docker
-# worker — VM2: open 22, install Docker (Redis port restricted via compose)
+# app    — DO droplet: open 22/80/443, install Docker
+# embed  — OCI embed VM: open 22/8080, install Docker
+# worker — OCI worker VM: open 22, install Docker
 
 set -euo pipefail
 
@@ -73,6 +74,10 @@ if [[ "$ROLE" == "app" ]]; then
   ufw allow 443/udp comment 'HTTP/3'
 fi
 
+if [[ "$ROLE" == "embed" ]]; then
+  ufw allow 8080/tcp comment 'Embed service'
+fi
+
 ufw --force enable
 
 # --- fail2ban ---
@@ -108,7 +113,9 @@ systemctl reload sshd || systemctl reload ssh
 log "Done. Role=$ROLE"
 log "Next: clone repo, create .env, run docker compose"
 if [[ "$ROLE" == "app" ]]; then
-  log "  cd ~/ragify/deploy/vm1 && docker compose up -d --build"
+  log "  cd ~/ragify/deploy/do && docker compose up -d --build"
+elif [[ "$ROLE" == "embed" ]]; then
+  log "  cd ~/ragify/deploy/oci && docker compose -f docker-compose.embed.yml up -d --build"
 else
-  log "  cd ~/ragify/deploy/vm2 && docker compose up -d --build"
+  log "  cd ~/ragify/deploy/oci && docker compose -f docker-compose.worker.yml up -d --build"
 fi

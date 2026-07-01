@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "@clerk/clerk-react";
 import { Loader2, Shield, AlertCircle } from "lucide-react";
-import { supabase } from "@/lib/supabase";
-import { getAccessToken } from "@/lib/supabase";
 
 interface AdminStats {
   bots: number;
@@ -22,20 +21,21 @@ interface AdminStats {
 
 export default function AdminPage() {
   const navigate = useNavigate();
+  const { isLoaded, isSignedIn, getToken } = useAuth();
   const [loading, setLoading] = useState(true);
   const [forbidden, setForbidden] = useState(false);
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    async function load() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        navigate("/login?next=/admin");
-        return;
-      }
+    if (!isLoaded) return;
+    if (!isSignedIn) {
+      navigate("/login?next=/admin");
+      return;
+    }
 
-      const token = await getAccessToken();
+    async function load() {
+      const token = await getToken();
       if (!token) {
         navigate("/login?next=/admin");
         return;
@@ -62,7 +62,7 @@ export default function AdminPage() {
       setLoading(false);
     }
     void load();
-  }, [navigate]);
+  }, [isLoaded, isSignedIn, getToken, navigate]);
 
   if (loading) {
     return (
@@ -79,7 +79,7 @@ export default function AdminPage() {
           <AlertCircle className="w-8 h-8 mx-auto mb-3 text-amber-500" />
           <p className="font-medium" style={{ color: "var(--fg)" }}>Admin access required</p>
           <p className="text-sm mt-1" style={{ color: "var(--fg-muted)" }}>
-            Set <code className="text-xs">is_admin = true</code> on your row in <code className="text-xs">user_profiles</code>.
+            Set <code className="text-xs">is_admin = true</code> on your row in the <code className="text-xs">users</code> table.
           </p>
           <Link to="/dashboard" className="btn btn-secondary mt-4 inline-flex">Back to dashboard</Link>
         </div>

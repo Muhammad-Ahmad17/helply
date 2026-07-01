@@ -1,0 +1,17 @@
+do_token   = "dop_v1_..."
+domain     = "ragify.tech"
+region     = "nyc3"
+ssh_keys   = ["your-do-ssh-fingerprint"]
+
+# Existing OCI VMs (helply-app / helply-worker) — set public IPs for DO firewall
+oci_embed_public_ip  = "1.2.3.4"
+oci_worker_public_ip = "5.6.7.8"
+
+# Optional: import existing OCI instances instead of creating new ones
+# oci_embed_instance_id  = "ocid1.instance..."
+# oci_worker_instance_id = "ocid1.instance..."
+# oci_subnet_id          = "ocid1.subnet..."
+# oci_ssh_public_key     = "ssh-ed25519 AAAA..."
+
+postgres_password = "change-me-strong"
+redis_password    = "change-me-strong"

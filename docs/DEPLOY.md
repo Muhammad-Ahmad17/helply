@@ -1,213 +1,104 @@
-# Self-host Ragify on Oracle Cloud (Docker + Caddy)
+# Ragify deployment (hybrid DO + OCI)
 
-Two-VM microservices layout: **Vite SPA + Caddy edge + chat-api** on VM1, **Redis + worker + crawl-api + webhooks + cron** on VM2.
+## Architecture
 
-**Architecture**
+| Host | Path | Services |
+|------|------|----------|
+| DigitalOcean droplet | `deploy/do/` | Caddy, API, Postgres+pgvector, Redis, SPA |
+| OCI embed VM | `deploy/oci/docker-compose.embed.yml` | Self-hosted embeddings |
+| OCI worker VM | `deploy/oci/docker-compose.worker.yml` | BullMQ crawl worker |
 
-| VM | Role | Services |
-|----|------|----------|
-| VM1 | Public edge | Caddy (TLS, rate limits, security headers) + static SPA + chat-api |
-| VM2 | Private backend | Redis + crawl worker + crawl-api + webhooks + cron |
-
-Managed services: **Supabase**, **Groq**, **Jina**.
-
-```
-Internet → Caddy (VM1)
-            ├── /           → Vite SPA (static)
-            ├── /api/chat   → chat-api (VM1)
-            ├── /api/crawl  → crawl-api (VM2)
-            ├── /api/webhooks → webhooks (VM2)
-            └── /api/cron   → cron (VM2)
-```
-
----
-
-## Deploy paths
-
-| Path | Purpose |
-|------|---------|
-| `deploy/vm1/` | VM1 docker-compose + Caddyfile |
-| `deploy/vm2/` | VM2 docker-compose |
-| `deploy/scripts/` | rewash + nuclear cleanup scripts |
-| `deploy/Makefile` | Laptop deploy helpers |
-
-Clone on both VMs at **`~/helply`** (or **`~/ragify`** — same repo, either path works).
-
----
-
-## Database migrations
-
-Apply all files in `supabase/migrations/` **in order** via Supabase Dashboard → SQL Editor:
-
-| File | Purpose |
-|------|---------|
-| `0001_init.sql` | Core schema + pgvector |
-| `0002_security.sql` | allowed_origins, plan columns |
-| `0003_quotas.sql` | consume_message_quota RPC |
-| `0004_crawl_jobs.sql` | Background crawl queue |
-| `0005_webhooks_admin.sql` | Lemon webhooks + is_admin |
-| `0006_quota_alerts.sql` | quota_alert_sent column |
-
----
-
-## VM2 cron scheduler
-
-After first deploy on VM2:
+## 1. Provision infrastructure
 
 ```bash
-ssh helply-worker
-cd ~/helply/deploy/vm2
-bash setup-cron.sh
+cd infra/terraform
+cp terraform.tfvars.example terraform.tfvars
+# Edit: DO token, domain, OCI public IPs, passwords
+terraform init && terraform apply
 ```
 
-This installs crontab entries for health-check, crawl-worker backup, weekly export, and quota alerts.
-
----
-
-## External uptime monitoring
-
-From your laptop or UptimeRobot:
+Bootstrap each host once (as root):
 
 ```bash
-CRON_SECRET=your-secret bash deploy/scripts/uptime-check.sh
+sudo bash infra/bootstrap-vm.sh app     # DO droplet
+sudo bash infra/bootstrap-vm.sh embed   # OCI embed VM
+sudo bash infra/bootstrap-vm.sh worker  # OCI worker VM
 ```
 
----
+## 2. Database
 
-## 5. Deploy VM2 (backend) — deploy first
+Postgres runs in Docker on the DO droplet. Migrations in `db/migrations/` are applied automatically on first `postgres` container start via `docker-entrypoint-initdb.d`.
+
+To re-run manually:
 
 ```bash
-ssh helply-worker
-cd ~/ragify
-git pull
-cp deploy/vm2/.env.example deploy/vm2/.env
-nano deploy/vm2/.env
-cd deploy/vm2
-docker compose up -d --build
-docker compose ps
-docker compose logs -f worker crawl-api
+docker compose -f deploy/do/docker-compose.yml exec postgres \
+  psql -U ragify -d ragify -f /docker-entrypoint-initdb.d/001_init.sql
 ```
 
-**VM2 `.env` minimum:**
+## 3. Configure environment
 
-```env
-REDIS_BIND=10.0.2.46
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_ANON_KEY=eyJ...
-SUPABASE_SERVICE_ROLE_KEY=eyJ...
-JINA_API_KEY=jina_...
-CRON_SECRET=...
-WORKER_POLL_MS=60000
-```
-
----
-
-## 6. Deploy VM1 (edge + SPA + chat-api)
+**DO droplet** (`deploy/do/.env`):
 
 ```bash
-ssh helply-app
-cd ~/ragify
-git pull
-cp deploy/vm1/.env.example deploy/vm1/.env
-nano deploy/vm1/.env
-cd deploy/vm1
-docker compose up -d --build
-docker compose ps
-docker compose logs -f caddy chat-api
+cp deploy/do/.env.example deploy/do/.env
+# Set: DOMAIN, DATABASE_URL, REDIS_URL, CLERK_*, STRIPE_*, GROQ_*, EMBED_URL, etc.
 ```
 
-**VM1 `.env` minimum:**
-
-```env
-DOMAIN=ragify.tech
-VM2_PRIVATE_IP=10.0.2.46
-VITE_SUPABASE_URL=https://your-project.supabase.co
-VITE_SUPABASE_ANON_KEY=eyJ...
-VITE_APP_URL=https://ragify.tech
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=eyJ...
-GROQ_API_KEY=gsk_...
-JINA_API_KEY=jina_...
-REDIS_URL=redis://10.0.2.46:6379
-RATE_LIMIT_SECRET=...
-```
-
----
-
-## Rewash (clean redeploy)
-
-**VM1** (preserves TLS certs):
+**OCI worker** (`deploy/oci/.env`):
 
 ```bash
-cd ~/ragify/deploy/vm1
-bash ../scripts/rewash-vm1.sh
+cp deploy/oci/.env.example deploy/oci/.env
+# Point DATABASE_URL and REDIS_URL at DO droplet public IP (firewall allowlisted)
 ```
 
-**VM2:**
+**OCI embed** — set `EMBED_API_KEY` in compose env or `.env` next to embed compose file.
+
+## 4. Deploy
+
+From your laptop:
 
 ```bash
-cd ~/ragify/deploy/vm2
-bash ../scripts/rewash-vm2.sh
-```
-
-**Nuclear cleanup** (both VMs — removes all containers/images):
-
-```bash
-bash ~/ragify/deploy/scripts/nuclear-cleanup.sh
-```
-
-**From laptop:**
-
-```bash
-make -C deploy rewash-all
 make -C deploy deploy
-make -C deploy status
+make -C deploy verify
 ```
 
----
-
-## Auth (Supabase)
-
-- Site URL: `https://ragify.tech`
-- Redirect URLs: `https://ragify.tech/auth/callback`
-
----
-
-## Smoke tests
+Or on each host after `git pull`:
 
 ```bash
-curl -I https://ragify.tech
-curl -I -X OPTIONS https://ragify.tech/api/chat
-curl -I -X POST https://ragify.tech/api/crawl   # expect 401, NOT 502
-curl https://ragify.tech/widget.js | head -5
-bash deploy/scripts/verify.sh
+# DO
+cd ~/ragify/deploy/do && docker compose up -d --build
+
+# OCI embed
+cd ~/ragify/deploy/oci && docker compose -f docker-compose.embed.yml up -d --build
+
+# OCI worker
+cd ~/ragify/deploy/oci && docker compose -f docker-compose.worker.yml up -d --build
 ```
 
-### POST /api/crawl returns 502
+## 5. Cron jobs (optional)
 
-Caddy on VM1 proxies `/api/crawl` to VM2 private IP port **3002**. A **502** means VM1 cannot reach crawl-api — not an app bug.
+Schedule on DO droplet or any host with `CRON_SECRET`:
 
-**Checklist:**
+```cron
+*/5  * * * * curl -sf -H "Authorization: Bearer $CRON_SECRET" https://ragify.tech/api/cron/health-check
+0    * * * * curl -sf -H "Authorization: Bearer $CRON_SECRET" https://ragify.tech/api/cron/quota-alerts
+0    3 * * 0 curl -sf -H "Authorization: Bearer $CRON_SECRET" https://ragify.tech/api/cron/export-conversations
+```
 
-1. **OCI security list** — VM2 must allow TCP **3002–3004** from VCN (`10.0.0.0/16`), not just 6379:
-   ```bash
-   bash infra/oci/apply-policies.sh
-   ```
-   Or in OCI Console → VCN → Security Lists → helply-worker → Add ingress: TCP 3002–3004, source `10.0.0.0/16`.
+## 6. Backups
 
-2. **VM2 services running:**
-   ```bash
-   ssh helply-worker
-   cd ~/helply/deploy/vm2 && docker compose ps
-   docker compose logs crawl-api --tail 30
-   ```
+Enable nightly Postgres dumps to DO Spaces:
 
-3. **VM1 can reach VM2** (run on VM1, replace IP):
-   ```bash
-   curl -s -o /dev/null -w "%{http_code}" http://10.0.2.46:3002/health
-   # expect 200
-   ```
+```bash
+cd deploy/do
+docker compose --profile backup up -d backup
+```
 
-4. **VM1 `.env`** — `VM2_PRIVATE_IP` must match VM2’s actual private IP.
+Restore: `bash deploy/do/scripts/restore-pg.sh backups/ragify-TIMESTAMP.sql.gz`
 
----
+## Troubleshooting
+
+- **502 on /api/crawl** — worker can't reach DO Postgres/Redis; check Terraform firewall + `DATABASE_URL`/`REDIS_URL` on OCI worker.
+- **Chat returns empty context** — check `EMBED_URL` from API to OCI embed VM (`curl http://embed-ip:8080/health`).
+- **Smoke tests** — `bash deploy/scripts/verify.sh`

@@ -1,0 +1,135 @@
+# DO droplet — Caddy edge + API + Postgres + Redis + Datadog
+# Usage: cd deploy/do && docker compose up -d --build
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ragify
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ragify
+    ports:
+      - "${POSTGRES_BIND:-127.0.0.1}:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../../db/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ragify -d ragify"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ragify
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: >
+      redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+      --requirepass ${REDIS_PASSWORD}
+    ports:
+      - "${REDIS_BIND:-127.0.0.1}:6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - ragify
+
+  web-static:
+    build:
+      context: ../..
+      dockerfile: deploy/do/Dockerfile.web
+      args:
+        VITE_CLERK_PUBLISHABLE_KEY: ${VITE_CLERK_PUBLISHABLE_KEY}
+        VITE_APP_URL: ${VITE_APP_URL}
+        VITE_STRIPE_PUBLISHABLE_KEY: ${VITE_STRIPE_PUBLISHABLE_KEY}
+    volumes:
+      - web_dist:/out
+    restart: unless-stopped
+    networks:
+      - ragify
+
+  api:
+    build:
+      context: ../..
+      dockerfile: apps/api/Dockerfile
+    env_file: .env
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - ragify
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - web_dist:/srv/web:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web-static
+      - api
+    networks:
+      - ragify
+
+  datadog:
+    image: gcr.io/datadoghq/agent:7
+    restart: unless-stopped
+    environment:
+      DD_API_KEY: ${DD_API_KEY}
+      DD_SITE: ${DD_SITE:-datadoghq.com}
+      DD_APM_ENABLED: "true"
+      DD_LOGS_ENABLED: "true"
+      DD_CONTAINER_EXCLUDE: "name:datadog"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
+    networks:
+      - ragify
+    profiles:
+      - observability
+
+  backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      PGHOST: postgres
+      PGUSER: ragify
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: ragify
+      S3_ENDPOINT: ${SPACES_ENDPOINT}
+      S3_BUCKET: ${SPACES_BUCKET}
+      AWS_ACCESS_KEY_ID: ${SPACES_ACCESS_KEY}
+      AWS_SECRET_ACCESS_KEY: ${SPACES_SECRET_KEY}
+    volumes:
+      - ./scripts/pg-backup.sh:/pg-backup.sh:ro
+    entrypoint: ["/bin/sh", "-c", "while true; do /pg-backup.sh; sleep 86400; done"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ragify
+    profiles:
+      - backup
+
+networks:
+  ragify:
+
+volumes:
+  postgres_data:
+  redis_data:
+  web_dist:
+  caddy_data:
+  caddy_config:

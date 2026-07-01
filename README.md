@@ -2,7 +2,21 @@
 
 > Paste a URL → get an AI chatbot trained on that content → embed it anywhere with one line of code.
 
-Microservices monorepo: **Vite SPA** · **Hono APIs** · **Caddy edge** · **@ragify/core**
+**Modular monolith** · **Vite SPA** · **Hono API** · **BullMQ worker** · **Self-hosted embeddings** · **Hybrid DO + OCI**
+
+---
+
+## Architecture
+
+| Component | Host | Role |
+|-----------|------|------|
+| `apps/web` | DO droplet (Caddy) | React dashboard + embed widget |
+| `apps/api` | DO droplet | Modular monolith (chat, crawl, billing, admin, cron) |
+| Postgres + pgvector + Redis | DO droplet | Data + BullMQ queue |
+| `apps/embed` | OCI free VM | Self-hosted `bge-small-en-v1.5` embeddings (384-dim, free) |
+| `apps/worker` | OCI free VM | BullMQ crawl/embed/index worker |
+
+Auth: **Clerk** · Billing: **Stripe** · LLM: **Groq** · Observability: **Sentry + Datadog**
 
 ---
 
@@ -10,64 +24,60 @@ Microservices monorepo: **Vite SPA** · **Hono APIs** · **Caddy edge** · **@ra
 
 ```
 ragify/
-├── apps/web/              ← Vite/React SPA (dashboard, embed, marketing)
-├── services/
-│   ├── chat-api/          ← streaming RAG chat (VM1)
-│   ├── crawl-api/         ← crawl enqueue (VM2)
-│   ├── webhooks/          ← Lemon Squeezy (VM2)
-│   ├── cron/              ← health, export, crawl fallback (VM2)
-│   └── worker/            ← background crawl poller (VM2)
-├── packages/core/         ← shared crawler, embeddings, types
+├── apps/
+│   ├── web/           ← Vite/React SPA
+│   ├── api/           ← Modular monolith (Hono)
+│   ├── embed/         ← transformers.js embedding service
+│   └── worker/        ← BullMQ crawl worker
+├── packages/core/     ← Shared crawler, chunk, db, queue, zyte
+├── db/migrations/     ← Postgres schema (384-dim vectors)
 ├── deploy/
-│   ├── vm1/               ← Caddy + SPA + chat-api
-│   └── vm2/               ← Redis + backend services
-├── infra/                 ← OCI scripts, bootstrap
-└── supabase/              ← DB migrations
+│   ├── do/            ← DO droplet compose (Caddy, API, Postgres, Redis)
+│   └── oci/           ← OCI compose (embed + worker)
+├── infra/terraform/   ← DO droplet + OCI VMs + firewall + Spaces
+└── .github/workflows/ ← ci.yml, deploy.yml, terraform.yml
 ```
 
 ---
 
-## Quick start (local dev)
+## Local dev
 
 ```bash
 npm install
 cp apps/web/.env.example apps/web/.env.local
-# Fill VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY, VITE_APP_URL
+cp deploy/do/.env.example deploy/do/.env   # for reference
 
-npm run dev              # SPA at http://localhost:5173
-npm run dev:chat         # chat-api at :3001 (separate terminal)
-npm run dev:crawl        # crawl-api at :3002 (separate terminal)
-npm run worker           # crawl worker poller
+# Start Postgres + Redis (or use docker compose in deploy/do)
+npm run dev              # SPA at :5173
+npm run dev:api          # API at :3000
+npm run dev:embed        # Embed service at :8080
+npm run dev:worker       # BullMQ worker
 ```
+
+Set `EMBED_URL=http://localhost:8080` and `DATABASE_URL` / `REDIS_URL` in your environment.
 
 ---
 
-## Production deploy
-
-See **[docs/DEPLOY.md](docs/DEPLOY.md)** for Oracle Cloud 2-VM setup.
+## Deploy
 
 ```bash
-# From laptop
-make -C deploy deploy      # git pull + compose up on both VMs
-make -C deploy rewash-all  # full rebuild both VMs
-make -C deploy status
+# Terraform (DO + OCI)
+cd infra/terraform && cp terraform.tfvars.example terraform.tfvars
+terraform init && terraform apply
+
+# Manual deploy
+make -C deploy deploy
+make -C deploy verify
 ```
 
-On each VM (repo cloned at `~/helply` or `~/ragify`):
-
-```bash
-cd ~/helply/deploy/vm1 && docker compose up -d --build   # VM1
-cd ~/helply/deploy/vm2 && docker compose up -d --build   # VM2
-```
+See **[docs/DEPLOY.md](docs/DEPLOY.md)** and **[docs/CICD.md](docs/CICD.md)**.
 
 ---
 
 ## Scripts
 
 ```bash
-npm run typecheck    # all workspaces
-npm run build        # Vite SPA production build
-npm run abuse-test   # security smoke tests against BASE_URL
+npm run typecheck
+npm run build
 bash deploy/scripts/verify.sh
-bash deploy/scripts/uptime-check.sh
 ```

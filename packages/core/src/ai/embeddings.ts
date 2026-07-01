@@ -1,74 +1,62 @@
-// Jina AI embeddings client with batching and concurrency control.
+// Self-hosted embeddings via apps/embed HTTP service (replaces Jina).
 import pLimit from "p-limit";
 
-const JINA_API = "https://api.jina.ai/v1/embeddings";
-const MODEL = "jina-embeddings-v3";
-const DIM = 1024;
-const BATCH_SIZE = 32;
+export const EMBEDDING_DIM = 384;
+const BATCH_SIZE = 16;
 const CONCURRENCY = 2;
-
-type Task = "retrieval.passage" | "retrieval.query";
-
-interface JinaResponse {
-  data: Array<{ embedding: number[]; index: number }>;
-  usage?: { total_tokens: number; prompt_tokens: number };
-}
-
 const limit = pLimit(CONCURRENCY);
 
-async function callJina(texts: string[], task: Task): Promise<number[][]> {
-  if (!process.env.JINA_API_KEY) {
-    throw new Error("JINA_API_KEY is not set. Get one at https://jina.ai/?sui=apikey");
-  }
+function embedUrl(): string {
+  const url = process.env.EMBED_URL;
+  if (!url) throw new Error("EMBED_URL is not set");
+  return url.replace(/\/$/, "");
+}
 
-  const res = await fetch(JINA_API, {
+function embedHeaders(): Record<string, string> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const key = process.env.EMBED_API_KEY;
+  if (key) headers.Authorization = `Bearer ${key}`;
+  return headers;
+}
+
+async function callEmbed(texts: string[]): Promise<number[][]> {
+  if (texts.length === 0) return [];
+
+  const res = await fetch(`${embedUrl()}/embed`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.JINA_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      task,
-      dimensions: DIM,
-      input: texts,
-    }),
+    headers: embedHeaders(),
+    body: JSON.stringify({ texts }),
   });
 
   if (!res.ok) {
     const body = await res.text();
-    throw new Error(`Jina embeddings failed (${res.status}): ${body}`);
+    throw new Error(`Embed service failed (${res.status}): ${body}`);
   }
 
-  const json = (await res.json()) as JinaResponse;
-  return json.data.sort((a, b) => a.index - b.index).map((d) => d.embedding);
+  const json = (await res.json()) as { embeddings: number[][] };
+  return json.embeddings;
 }
 
-async function callJinaBatched(texts: string[], task: Task): Promise<number[][]> {
-  if (texts.length === 0) return [];
-
+async function callEmbedBatched(texts: string[]): Promise<number[][]> {
   const batches: string[][] = [];
   for (let i = 0; i < texts.length; i += BATCH_SIZE) {
     batches.push(texts.slice(i, i + BATCH_SIZE));
   }
-
   const results = await Promise.all(
-    batches.map((batch) => limit(() => callJina(batch, task)))
+    batches.map((batch) => limit(() => callEmbed(batch)))
   );
-
   return results.flat();
 }
 
 export async function embedPassages(texts: string[]): Promise<number[][]> {
-  return callJinaBatched(texts, "retrieval.passage");
+  return callEmbedBatched(texts);
 }
 
 export async function embedQuery(text: string): Promise<number[]> {
-  const [vec] = await callJina([text], "retrieval.query");
+  const [vec] = await callEmbed([text]);
   return vec;
 }
 
-/** Race embed against a timeout — returns null if Jina is too slow (Hobby 10s limit). */
 export async function embedQueryWithTimeout(
   text: string,
   timeoutMs = 3500
@@ -83,4 +71,11 @@ export async function embedQueryWithTimeout(
   }
 }
 
-export const EMBEDDING_DIM = DIM;
+export async function checkEmbedHealth(): Promise<boolean> {
+  try {
+    const res = await fetch(`${embedUrl()}/health`, { signal: AbortSignal.timeout(5000) });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}

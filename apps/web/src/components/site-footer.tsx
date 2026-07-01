@@ -13,7 +13,7 @@ const columns = [
   {
     title: "Resources",
     links: [
-      { label: "Documentation", href: "/#how" },
+      { label: "How it works", href: "/#how" },
       { label: "Dashboard", href: "/dashboard" },
       { label: "Sign in", href: "/login" },
     ],
@@ -21,9 +21,7 @@ const columns = [
   {
     title: "Company",
     links: [
-      { label: "Get started", href: "/login" },
-      { label: "Privacy", href: "#" },
-      { label: "Terms", href: "#" },
+      { label: "Start free", href: "/login" },
     ],
   },
 ];
@@ -37,9 +35,15 @@ export function SiteFooter() {
             <Link to="/" className="text-sm font-medium" style={{ color: "var(--fg)" }}>
               Ragify
             </Link>
-            <p className="text-xs mt-3 leading-relaxed max-w-[200px]" style={{ color: "var(--fg-muted)" }}>
-              Turn any website into an AI assistant. Embed anywhere in seconds.
+            <p className="text-xs mt-3 leading-relaxed max-w-[220px]" style={{ color: "var(--fg-muted)" }}>
+              Turn docs, sites, and PDFs into embeddable AI chatbots. Built with Ragify on your site.
             </p>
+            <span
+              className="inline-flex mt-3 text-[10px] font-medium px-2 py-1 rounded-full"
+              style={{ background: "var(--accent-muted)", color: "var(--accent-fg)" }}
+            >
+              Built with Ragify
+            </span>
           </div>
 
           {columns.map((col) => (

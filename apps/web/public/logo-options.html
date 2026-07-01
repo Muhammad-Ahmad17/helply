@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Ragify · Logo concepts</title>
+    <style>
+      :root {
+        --ink: #171717;
+        --bg: #fafafa;
+        --muted: #737373;
+        --border: rgba(0, 0, 0, 0.1);
+        --accent: #10b981;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+        background: var(--bg);
+        color: var(--ink);
+        padding: 48px 24px 80px;
+      }
+      .wrap { max-width: 1040px; margin: 0 auto; }
+      h1 { font-size: 24px; font-weight: 600; letter-spacing: -0.02em; margin: 0 0 4px; }
+      p.sub { color: var(--muted); margin: 0 0 40px; font-size: 14px; }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 20px;
+      }
+      .card {
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        overflow: hidden;
+        background: #fff;
+      }
+      .card-head {
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .card-head .name { font-size: 13px; font-weight: 600; }
+      .card-head .tag { font-size: 11px; color: var(--muted); }
+      .previews { display: grid; grid-template-columns: 1fr 1fr; }
+      .pane {
+        padding: 28px 16px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 14px;
+      }
+      .pane.light { background: #fafafa; }
+      .pane.dark { background: #0a0a0a; }
+      .lockup { display: flex; align-items: center; gap: 10px; }
+      .word { font-size: 18px; font-weight: 600; letter-spacing: -0.02em; }
+      .pane.light .word { color: #171717; }
+      .pane.dark .word { color: #ededed; }
+      .sizes { display: flex; align-items: center; gap: 12px; }
+      .footnote { font-size: 11px; color: var(--muted); margin-top: 48px; line-height: 1.6; }
+      code { font-family: ui-monospace, monospace; font-size: 11px; background: rgba(0,0,0,.05); padding: 1px 5px; border-radius: 4px; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>Ragify — logo concepts</h1>
+      <p class="sub">Five directions, each shown on light + dark with the wordmark and at 40/28/20px. Tell me which to ship.</p>
+
+      <div class="grid">
+
+        <!-- 1: R + chat tail -->
+        <div class="card">
+          <div class="card-head"><span class="name">1 · Chat monogram</span><span class="tag">R as a speech bubble</span></div>
+          <div class="previews">
+            <div class="pane light">
+              <div class="lockup">
+                <svg width="40" height="40" viewBox="0 0 48 48" fill="none">
+                  <path d="M10 8h28a4 4 0 0 1 4 4v20a4 4 0 0 1-4 4H20l-8 7v-7h-2a4 4 0 0 1-4-4V12a4 4 0 0 1 4-4Z" fill="#171717"/>
+                  <path d="M19 16h7.5a4 4 0 0 1 0 8H19m0-8v13m7.5-5 5 5" stroke="#fafafa" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span class="word">Ragify</span>
+              </div>
+              <div class="sizes">
+                <svg width="28" height="28" viewBox="0 0 48 48" fill="none"><path d="M10 8h28a4 4 0 0 1 4 4v20a4 4 0 0 1-4 4H20l-8 7v-7h-2a4 4 0 0 1-4-4V12a4 4 0 0 1 4-4Z" fill="#171717"/><path d="M19 16h7.5a4 4 0 0 1 0 8H19m0-8v13m7.5-5 5 5" stroke="#fafafa" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <svg width="20" height="20" viewBox="0 0 48 48" fill="none"><path d="M10 8h28a4 4 0 0 1 4 4v20a4 4 0 0 1-4 4H20l-8 7v-7h-2a4 4 0 0 1-4-4V12a4 4 0 0 1 4-4Z" fill="#171717"/><path d="M19 16h7.5a4 4 0 0 1 0 8H19m0-8v13m7.5-5 5 5" stroke="#fafafa" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </div>
+            </div>
+            <div class="pane dark">
+              <div class="lockup">
+                <svg width="40" height="40" viewBox="0 0 48 48" fill="none">
+                  <path d="M10 8h28a4 4 0 0 1 4 4v20a4 4 0 0 1-4 4H20l-8 7v-7h-2a4 4 0 0 1-4-4V12a4 4 0 0 1 4-4Z" fill="#34d399"/>
+                  <path d="M19 16h7.5a4 4 0 0 1 0 8H19m0-8v13m7.5-5 5 5" stroke="#0a0a0a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span class="word">Ragify</span>
+              </div>
+              <div class="sizes">
+                <svg width="28" height="28" viewBox="0 0 48 48" fill="none"><path d="M10 8h28a4 4 0 0 1 4 4v20a4 4 0 0 1-4 4H20l-8 7v-7h-2a4 4 0 0 1-4-4V12a4 4 0 0 1 4-4Z" fill="#34d399"/><path d="M19 16h7.5a4 4 0 0 1 0 8H19m0-8v13m7.5-5 5 5" stroke="#0a0a0a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <svg width="20" height="20" viewBox="0 0 48 48" fill="none"><path d="M10 8h28a4 4 0 0 1 4 4v20a4 4 0 0 1-4 4H20l-8 7v-7h-2a4 4 0 0 1-4-4V12a4 4 0 0 1 4-4Z" fill="#34d399"/><path d="M19 16h7.5a4 4 0 0 1 0 8H19m0-8v13m7.5-5 5 5" stroke="#0a0a0a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2: Document + spark -->
+        <div class="card">
+          <div class="card-head"><span class="name">2 · Source spark</span><span class="tag">docs become answers</span></div>
+          <div class="previews">
+            <div class="pane light">
+              <div class="lockup">
+                <svg width="40" height="40" viewBox="0 0 48 48" fill="none">
+                  <rect x="6" y="6" width="36" height="36" rx="10" fill="#171717"/>
+                  <path d="M17 14h9l5 5v12a2 2 0 0 1-2 2H17a2 2 0 0 1-2-2V16a2 2 0 0 1 2-2Z" stroke="#fafafa" stroke-width="2" stroke-linejoin="round"/>
+                  <path d="M20 24h6m-6 4h4" stroke="#fafafa" stroke-width="2" stroke-linecap="round"/>
+                  <path d="M31 28.5l1.2 2.6 2.6 1.2-2.6 1.2L31 36l-1.2-2.5-2.6-1.2 2.6-1.2L31 28.5Z" fill="#10b981"/>
+                </svg>
+                <span class="word">Ragify</span>
+              </div>
+              <div class="sizes">
+                <svg width="28" height="28" viewBox="0 0 48 48" fill="none"><rect x="6" y="6" width="36" height="36" rx="10" fill="#171717"/><path d="M17 14h9l5 5v12a2 2 0 0 1-2 2H17a2 2 0 0 1-2-2V16a2 2 0 0 1 2-2Z" stroke="#fafafa" stroke-width="2" stroke-linejoin="round"/><path d="M20 24h6m-6 4h4" stroke="#fafafa" stroke-width="2" stroke-linecap="round"/><path d="M31 28.5l1.2 2.6 2.6 1.2-2.6 1.2L31 36l-1.2-2.5-2.6-1.2 2.6-1.2L31 28.5Z" fill="#10b981"/></svg>
+                <svg width="20" height="20" viewBox="0 0 48 48" fill="none"><rect x="6" y="6" width="36" height="36" rx="10" fill="#171717"/><path d="M17 14h9l5 5v12a2 2 0 0 1-2 2H17a2 2 0 0 1-2-2V16a2 2 0 0 1 2-2Z" stroke="#fafafa" stroke-width="2.4" stroke-linejoin="round"/><path d="M31 28.5l1.2 2.6 2.6 1.2-2.6 1.2L31 36l-1.2-2.5-2.6-1.2 2.6-1.2L31 28.5Z" fill="#10b981"/></svg>
+              </div>
+            </div>
+            <div class="pane dark">
+              <div class="lockup">
+                <svg width="40" height="40" viewBox="0 0 48 48" fill="none">
+                  <rect x="6" y="6" width="36" height="36" rx="10" fill="#141414"/>
+                  <path d="M17 14h9l5 5v12a2 2 0 0 1-2 2H17a2 2 0 0 1-2-2V16a2 2 0 0 1 2-2Z" stroke="#ededed" stroke-width="2" stroke-linejoin="round"/>
+                  <path d="M20 24h6m-6 4h4" stroke="#ededed" stroke-width="2" stroke-linecap="round"/>
+                  <path d="M31 28.5l1.2 2.6 2.6 1.2-2.6 1.2L31 36l-1.2-2.5-2.6-1.2 2.6-1.2L31 28.5Z" fill="#34d399"/>
+                </svg>
+                <span class="word">Ragify</span>
+              </div>
+              <div class="sizes">
+                <svg width="28" height="28" viewBox="0 0 48 48" fill="none"><rect x="6" y="6" width="36" height="36" rx="10" fill="#141414"/><path d="M17 14h9l5 5v12a2 2 0 0 1-2 2H17a2 2 0 0 1-2-2V16a2 2 0 0 1 2-2Z" stroke="#ededed" stroke-width="2" stroke-linejoin="round"/><path d="M20 24h6m-6 4h4" stroke="#ededed" stroke-width="2" stroke-linecap="round"/><path d="M31 28.5l1.2 2.6 2.6 1.2-2.6 1.2L31 36l-1.2-2.5-2.6-1.2 2.6-1.2L31 28.5Z" fill="#34d399"/></svg>
+                <svg width="20" height="20" viewBox="0 0 48 48" fill="none"><rect x="6" y="6" width="36" height="36" rx="10" fill="#141414"/><path d="M17 14h9l5 5v12a2 2 0 0 1-2 2H17a2 2 0 0 1-2-2V16a2 2 0 0 1 2-2Z" stroke="#ededed" stroke-width="2.4" stroke-linejoin="round"/><path d="M31 28.5l1.2 2.6 2.6 1.2-2.6 1.2L31 36l-1.2-2.5-2.6-1.2 2.6-1.2L31 28.5Z" fill="#34d399"/></svg>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3: Retrieval nodes -->
+        <div class="card">
+          <div class="card-head"><span class="name">3 · Retrieval</span><span class="tag">vector search nodes</span></div>
+          <div class="previews">
+            <div class="pane light">
+              <div class="lockup">
+                <svg width="40" height="40" viewBox="0 0 48 48" fill="none">
+                  <rect x="6" y="6" width="36" height="36" rx="10" fill="#171717"/>
+                  <circle cx="17" cy="17" r="3" fill="#10b981"/>
+                  <circle cx="31" cy="19" r="3" fill="#fafafa"/>
+                  <circle cx="19" cy="31" r="3" fill="#fafafa"/>
+                  <circle cx="30" cy="30" r="3.5" fill="#10b981"/>
+                  <path d="M17 17 31 19M17 17l2 14M31 19l-1 11M19 31l11-1" stroke="#fafafa" stroke-width="1.6" stroke-linecap="round" opacity="0.6"/>
+                </svg>
+                <span class="word">Ragify</span>
+              </div>
+              <div class="sizes">
+                <svg width="28" height="28" viewBox="0 0 48 48" fill="none"><rect x="6" y="6" width="36" height="36" rx="10" fill="#171717"/><circle cx="17" cy="17" r="3" fill="#10b981"/><circle cx="31" cy="19" r="3" fill="#fafafa"/><circle cx="19" cy="31" r="3" fill="#fafafa"/><circle cx="30" cy="30" r="3.5" fill="#10b981"/><path d="M17 17 31 19M17 17l2 14M31 19l-1 11M19 31l11-1" stroke="#fafafa" stroke-width="1.6" stroke-linecap="round" opacity="0.6"/></svg>
+                <svg width="20" height="20" viewBox="0 0 48 48" fill="none"><rect x="6" y="6" width="36" height="36" rx="10" fill="#171717"/><circle cx="17" cy="17" r="3.5" fill="#10b981"/><circle cx="31" cy="19" r="3.5" fill="#fafafa"/><circle cx="19" cy="31" r="3.5" fill="#fafafa"/><circle cx="30" cy="30" r="4" fill="#10b981"/><path d="M17 17 31 19M17 17l2 14M31 19l-1 11M19 31l11-1" stroke="#fafafa" stroke-width="1.8" stroke-linecap="round" opacity="0.6"/></svg>
+              </div>
+            </div>
+            <div class="pane dark">
+              <div class="lockup">
+                <svg width="40" height="40" viewBox="0 0 48 48" fill="none">
+                  <rect x="6" y="6" width="36" height="36" rx="10" fill="#141414"/>
+                  <circle cx="17" cy="17" r="3" fill="#34d399"/>
+                  <circle cx="31" cy="19" r="3" fill="#ededed"/>
+                  <circle cx="19" cy="31" r="3" fill="#ededed"/>
+                  <circle cx="30" cy="30" r="3.5" fill="#34d399"/>
+                  <path d="M17 17 31 19M17 17l2 14M31 19l-1 11M19 31l11-1" stroke="#ededed" stroke-width="1.6" stroke-linecap="round" opacity="0.5"/>
+                </svg>
+                <span class="word">Ragify</span>
+              </div>
+              <div class="sizes">
+                <svg width="28" height="28" viewBox="0 0 48 48" fill="none"><rect x="6" y="6" width="36" height="36" rx="10" fill="#141414"/><circle cx="17" cy="17" r="3" fill="#34d399"/><circle cx="31" cy="19" r="3" fill="#ededed"/><circle cx="19" cy="31" r="3" fill="#ededed"/><circle cx="30" cy="30" r="3.5" fill="#34d399"/><path d="M17 17 31 19M17 17l2 14M31 19l-1 11M19 31l11-1" stroke="#ededed" stroke-width="1.6" stroke-linecap="round" opacity="0.5"/></svg>
+                <svg width="20" height="20" viewBox="0 0 48 48" fill="none"><rect x="6" y="6" width="36" height="36" rx="10" fill="#141414"/><circle cx="17" cy="17" r="3.5" fill="#34d399"/><circle cx="31" cy="19" r="3.5" fill="#ededed"/><circle cx="19" cy="31" r="3.5" fill="#ededed"/><circle cx="30" cy="30" r="4" fill="#34d399"/><path d="M17 17 31 19M17 17l2 14M31 19l-1 11M19 31l11-1" stroke="#ededed" stroke-width="1.8" stroke-linecap="round" opacity="0.5"/></svg>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4: Geometric R -->
+        <div class="card">
+          <div class="card-head"><span class="name">4 · Bold monogram</span><span class="tag">geometric R, accent leg</span></div>
+          <div class="previews">
+            <div class="pane light">
+              <div class="lockup">
+                <svg width="40" height="40" viewBox="0 0 48 48" fill="none">
+                  <rect x="6" y="6" width="36" height="36" rx="12" fill="#171717"/>
+                  <path d="M18 14h8a6 6 0 0 1 0 12h-8V14Z" stroke="#fafafa" stroke-width="3" stroke-linejoin="round"/>
+                  <path d="M18 26v8" stroke="#fafafa" stroke-width="3" stroke-linecap="round"/>
+                  <path d="M25 26l6 8" stroke="#10b981" stroke-width="3" stroke-linecap="round"/>
+                </svg>
+                <span class="word">Ragify</span>
+              </div>
+              <div class="sizes">
+                <svg width="28" height="28" viewBox="0 0 48 48" fill="none"><rect x="6" y="6" width="36" height="36" rx="12" fill="#171717"/><path d="M18 14h8a6 6 0 0 1 0 12h-8V14Z" stroke="#fafafa" stroke-width="3" stroke-linejoin="round"/><path d="M18 26v8" stroke="#fafafa" stroke-width="3" stroke-linecap="round"/><path d="M25 26l6 8" stroke="#10b981" stroke-width="3" stroke-linecap="round"/></svg>
+                <svg width="20" height="20" viewBox="0 0 48 48" fill="none"><rect x="6" y="6" width="36" height="36" rx="12" fill="#171717"/><path d="M18 14h8a6 6 0 0 1 0 12h-8V14Z" stroke="#fafafa" stroke-width="3.4" stroke-linejoin="round"/><path d="M18 26v8" stroke="#fafafa" stroke-width="3.4" stroke-linecap="round"/><path d="M25 26l6 8" stroke="#10b981" stroke-width="3.4" stroke-linecap="round"/></svg>
+              </div>
+            </div>
+            <div class="pane dark">
+              <div class="lockup">
+                <svg width="40" height="40" viewBox="0 0 48 48" fill="none">
+                  <rect x="6" y="6" width="36" height="36" rx="12" fill="#ededed"/>
+                  <path d="M18 14h8a6 6 0 0 1 0 12h-8V14Z" stroke="#0a0a0a" stroke-width="3" stroke-linejoin="round"/>
+                  <path d="M18 26v8" stroke="#0a0a0a" stroke-width="3" stroke-linecap="round"/>
+                  <path d="M25 26l6 8" stroke="#10b981" stroke-width="3" stroke-linecap="round"/>
+                </svg>
+                <span class="word">Ragify</span>
+              </div>
+              <div class="sizes">
+                <svg width="28" height="28" viewBox="0 0 48 48" fill="none"><rect x="6" y="6" width="36" height="36" rx="12" fill="#ededed"/><path d="M18 14h8a6 6 0 0 1 0 12h-8V14Z" stroke="#0a0a0a" stroke-width="3" stroke-linejoin="round"/><path d="M18 26v8" stroke="#0a0a0a" stroke-width="3" stroke-linecap="round"/><path d="M25 26l6 8" stroke="#10b981" stroke-width="3" stroke-linecap="round"/></svg>
+                <svg width="20" height="20" viewBox="0 0 48 48" fill="none"><rect x="6" y="6" width="36" height="36" rx="12" fill="#ededed"/><path d="M18 14h8a6 6 0 0 1 0 12h-8V14Z" stroke="#0a0a0a" stroke-width="3.4" stroke-linejoin="round"/><path d="M18 26v8" stroke="#0a0a0a" stroke-width="3.4" stroke-linecap="round"/><path d="M25 26l6 8" stroke="#10b981" stroke-width="3.4" stroke-linecap="round"/></svg>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 5: Stacked chunks -->
+        <div class="card">
+          <div class="card-head"><span class="name">5 · Chunks</span><span class="tag">layered embeddings</span></div>
+          <div class="previews">
+            <div class="pane light">
+              <div class="lockup">
+                <svg width="40" height="40" viewBox="0 0 48 48" fill="none">
+                  <rect x="6" y="6" width="36" height="36" rx="10" fill="#171717"/>
+                  <rect x="15" y="14" width="18" height="6" rx="3" fill="#fafafa"/>
+                  <rect x="15" y="22" width="18" height="6" rx="3" fill="#fafafa" opacity="0.55"/>
+                  <rect x="15" y="30" width="11" height="6" rx="3" fill="#10b981"/>
+                </svg>
+                <span class="word">Ragify</span>
+              </div>
+              <div class="sizes">
+                <svg width="28" height="28" viewBox="0 0 48 48" fill="none"><rect x="6" y="6" width="36" height="36" rx="10" fill="#171717"/><rect x="15" y="14" width="18" height="6" rx="3" fill="#fafafa"/><rect x="15" y="22" width="18" height="6" rx="3" fill="#fafafa" opacity="0.55"/><rect x="15" y="30" width="11" height="6" rx="3" fill="#10b981"/></svg>
+                <svg width="20" height="20" viewBox="0 0 48 48" fill="none"><rect x="6" y="6" width="36" height="36" rx="10" fill="#171717"/><rect x="15" y="14" width="18" height="6" rx="3" fill="#fafafa"/><rect x="15" y="22" width="18" height="6" rx="3" fill="#fafafa" opacity="0.55"/><rect x="15" y="30" width="11" height="6" rx="3" fill="#10b981"/></svg>
+              </div>
+            </div>
+            <div class="pane dark">
+              <div class="lockup">
+                <svg width="40" height="40" viewBox="0 0 48 48" fill="none">
+                  <rect x="6" y="6" width="36" height="36" rx="10" fill="#141414"/>
+                  <rect x="15" y="14" width="18" height="6" rx="3" fill="#ededed"/>
+                  <rect x="15" y="22" width="18" height="6" rx="3" fill="#ededed" opacity="0.5"/>
+                  <rect x="15" y="30" width="11" height="6" rx="3" fill="#34d399"/>
+                </svg>
+                <span class="word">Ragify</span>
+              </div>
+              <div class="sizes">
+                <svg width="28" height="28" viewBox="0 0 48 48" fill="none"><rect x="6" y="6" width="36" height="36" rx="10" fill="#141414"/><rect x="15" y="14" width="18" height="6" rx="3" fill="#ededed"/><rect x="15" y="22" width="18" height="6" rx="3" fill="#ededed" opacity="0.5"/><rect x="15" y="30" width="11" height="6" rx="3" fill="#34d399"/></svg>
+                <svg width="20" height="20" viewBox="0 0 48 48" fill="none"><rect x="6" y="6" width="36" height="36" rx="10" fill="#141414"/><rect x="15" y="14" width="18" height="6" rx="3" fill="#ededed"/><rect x="15" y="22" width="18" height="6" rx="3" fill="#ededed" opacity="0.5"/><rect x="15" y="30" width="11" height="6" rx="3" fill="#34d399"/></svg>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <p class="footnote">
+        Open at <code>localhost:5173/logo-options.html</code> while the web dev server is running.<br />
+        Each mark is a self-contained SVG (rounded-square container, 48×48 viewBox) using your brand green
+        <code>#10b981</code> / <code>#34d399</code>. Pick a number and I'll wire it into the nav, favicon, and login page.
+      </p>
+    </div>
+  </body>
+</html>

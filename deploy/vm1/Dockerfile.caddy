@@ -1,2 +1,0 @@
-# Standard Caddy — custom ratelimit build often OOMs on 1GB Oracle VMs
-FROM caddy:2-alpine
